@@ -12,11 +12,11 @@ import {
 
 const STORAGE_KEY = 'knot-social-state';
 
-const defaultUsers = [
+const seededUsers = [
   {
     id: 'admin-1',
     username: 'admin',
-    password: 'KnotAdmin2026!',
+    password: 'KnotAdmin!2026',
     displayName: 'Admin',
     role: 'admin',
     verified: true,
@@ -27,7 +27,7 @@ const defaultUsers = [
   {
     id: 'admin-2',
     username: 'admin2',
-    password: 'admin222',
+    password: 'KnotAdmin2!2026',
     displayName: 'Admin Two',
     role: 'admin',
     verified: true,
@@ -38,7 +38,7 @@ const defaultUsers = [
   {
     id: 'user-knot',
     username: 'knot',
-    password: 'knot123',
+    password: 'KnotOwner!2026',
     displayName: 'Knot',
     role: 'owner',
     verified: true,
@@ -49,7 +49,7 @@ const defaultUsers = [
   {
     id: 'user-mila',
     username: 'mila',
-    password: 'mila123',
+    password: 'KnotMila!2026',
     displayName: 'Mila',
     role: 'user',
     verified: false,
@@ -58,6 +58,35 @@ const defaultUsers = [
     bio: 'Sharing updates and ideas.',
   },
 ];
+
+function getDefaultUsers() {
+  return seededUsers.map((user) => ({ ...user }));
+}
+
+function normalizeUsers(users = []) {
+  const builtInByUsername = new Map(getDefaultUsers().map((user) => [user.username.toLowerCase(), user]));
+  const mergedUsers = [];
+  const seenUsernames = new Set();
+
+  for (const builtInUser of getDefaultUsers()) {
+    mergedUsers.push({ ...builtInUser });
+    seenUsernames.add(builtInUser.username.toLowerCase());
+  }
+
+  for (const user of users) {
+    const normalizedUsername = user?.username?.toLowerCase();
+    if (!normalizedUsername || builtInByUsername.has(normalizedUsername)) {
+      continue;
+    }
+
+    if (!seenUsernames.has(normalizedUsername)) {
+      mergedUsers.push({ ...user });
+      seenUsernames.add(normalizedUsername);
+    }
+  }
+
+  return mergedUsers;
+}
 
 const defaultPosts = [
   {
@@ -115,12 +144,12 @@ function getAvatarLabel(user) {
 }
 
 export default function App() {
-  const [users, setUsers] = useState(defaultUsers);
+  const [users, setUsers] = useState(getDefaultUsers());
   const [posts, setPosts] = useState(defaultPosts);
   const [authUser, setAuthUser] = useState(null);
   const [hydrated, setHydrated] = useState(false);
   const [authMode, setAuthMode] = useState('signin');
-  const [authForm, setAuthForm] = useState({ username: 'knot', password: 'knot123', displayName: '' });
+  const [authForm, setAuthForm] = useState({ username: '', password: '', displayName: '' });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState('user-knot');
   const [viewMode, setViewMode] = useState('feed');
@@ -131,12 +160,12 @@ export default function App() {
     password: '',
     profileImage: '',
   });
-  const [feedback, setFeedback] = useState('Use the built-in demo accounts from the sign-in screen.');
+  const [feedback, setFeedback] = useState('Sign in to continue.');
 
   useEffect(() => {
     const stored = getInitialState();
     if (stored) {
-      setUsers(stored.users || defaultUsers);
+      setUsers(normalizeUsers(stored.users || getDefaultUsers()));
       setPosts(stored.posts || defaultPosts);
       setAuthUser(stored.authUser || null);
       if (stored.authUser) {
@@ -266,12 +295,6 @@ export default function App() {
     setFeedback('Signed out.');
   };
 
-  const handleUseDemoAccount = () => {
-    setAuthMode('signin');
-    setAuthForm({ username: 'knot', password: 'knot123', displayName: '' });
-    setFeedback('Demo account ready. Use knot / knot123 to sign in.');
-  };
-
   const handleUpdateSettings = () => {
     if (!authUser) {
       return;
@@ -382,16 +405,6 @@ export default function App() {
                 onPress={() => setAuthMode('signup')}
               >
                 <Text style={styles.toggleText}>Sign up</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.demoCard}>
-              <Text style={styles.demoTitle}>Demo accounts</Text>
-              <Text style={styles.demoText}>Owner: knot / knot123</Text>
-              <Text style={styles.demoText}>Admin: admin / KnotAdmin2026!</Text>
-              <Text style={styles.demoText}>Admin 2: admin2 / admin222</Text>
-              <TouchableOpacity style={styles.demoButton} onPress={handleUseDemoAccount}>
-                <Text style={styles.demoButtonText}>Use owner account</Text>
               </TouchableOpacity>
             </View>
 
