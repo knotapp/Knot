@@ -1,4 +1,4 @@
-import { StatusBar } from 'expo-status-bar';
+﻿import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
@@ -23,6 +23,8 @@ const seededUsers = [
     banned: false,
     profileImage: '',
     bio: 'Website administrator and moderator.',
+    followers: ['user-knot'],
+    following: ['user-mila'],
   },
   {
     id: 'admin-2',
@@ -34,6 +36,8 @@ const seededUsers = [
     banned: false,
     profileImage: '',
     bio: 'Secondary administrator account.',
+    followers: ['user-knot'],
+    following: ['admin-1'],
   },
   {
     id: 'user-knot',
@@ -45,6 +49,8 @@ const seededUsers = [
     banned: false,
     profileImage: '',
     bio: 'Owner of this social website.',
+    followers: ['admin-1', 'admin-2', 'user-mila'],
+    following: ['admin-1', 'admin-2'],
   },
   {
     id: 'user-mila',
@@ -56,11 +62,13 @@ const seededUsers = [
     banned: false,
     profileImage: '',
     bio: 'Sharing updates and ideas.',
+    followers: ['user-knot'],
+    following: ['user-knot', 'admin-1'],
   },
 ];
 
 function getDefaultUsers() {
-  return seededUsers.map((user) => ({ ...user }));
+  return seededUsers.map((user) => ({ ...user, followers: [...(user.followers || [])], following: [...(user.following || [])] }));
 }
 
 function normalizeUsers(users = []) {
@@ -69,7 +77,7 @@ function normalizeUsers(users = []) {
   const seenUsernames = new Set();
 
   for (const builtInUser of getDefaultUsers()) {
-    mergedUsers.push({ ...builtInUser });
+    mergedUsers.push({ ...builtInUser, followers: [...(builtInUser.followers || [])], following: [...(builtInUser.following || [])] });
     seenUsernames.add(builtInUser.username.toLowerCase());
   }
 
@@ -80,7 +88,11 @@ function normalizeUsers(users = []) {
     }
 
     if (!seenUsernames.has(normalizedUsername)) {
-      mergedUsers.push({ ...user });
+      mergedUsers.push({
+        ...user,
+        followers: [...(user.followers || [])],
+        following: [...(user.following || [])],
+      });
       seenUsernames.add(normalizedUsername);
     }
   }
@@ -92,15 +104,32 @@ const defaultPosts = [
   {
     id: 'post-1',
     userId: 'user-knot',
-    content: 'Welcome to Knot Social. Search for @knot to view the owner profile.',
+    content: 'Welcome to Knot Social. Search for @knot to view the owner profile. #launch',
     createdAt: '2026-07-31T09:00:00.000Z',
+    comments: [{ id: 'comment-1', userId: 'user-mila', text: 'Love this update!', createdAt: '2026-07-31T10:00:00.000Z' }],
+    bookmarkedBy: [],
   },
   {
     id: 'post-2',
     userId: 'user-mila',
-    content: 'The web version is live and ready for posting.',
+    content: 'The web version is live and ready for posting. #web',
     createdAt: '2026-07-31T10:15:00.000Z',
+    comments: [],
+    bookmarkedBy: [],
   },
+];
+
+const defaultNotifications = [
+  { id: 'note-1', userId: 'user-mila', text: 'Knot mentioned you in the latest post.', createdAt: '2026-07-31T10:30:00.000Z' },
+];
+
+const defaultDirectMessages = [
+  { id: 'dm-1', senderId: 'user-knot', recipientId: 'user-mila', text: 'Welcome to direct messages.', createdAt: '2026-07-31T11:00:00.000Z' },
+];
+
+const defaultCommunities = [
+  { id: 'community-1', name: 'Creators', description: 'Share launches and feedback with creators.', members: ['user-knot', 'user-mila'] },
+  { id: 'community-2', name: 'Developers', description: 'Discuss the latest web and mobile builds.', members: ['admin-1'] },
 ];
 
 function getInitialState() {
@@ -116,7 +145,7 @@ function getInitialState() {
   }
 }
 
-function saveState(users, posts, authUser) {
+function saveState(users, posts, authUser, notifications, directMessages) {
   if (typeof window === 'undefined') {
     return;
   }
@@ -124,7 +153,7 @@ function saveState(users, posts, authUser) {
   try {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ users, posts, authUser })
+      JSON.stringify({ users, posts, authUser, notifications, directMessages })
     );
   } catch {
     // Ignore storage errors in this demo build.
@@ -132,7 +161,7 @@ function saveState(users, posts, authUser) {
 }
 
 function getAvatarLabel(user) {
-  const base = user.displayName || user.username || 'U';
+  const base = user?.displayName || user?.username || 'U';
   const initials = base
     .split(/\s+/)
     .map((part) => part[0] || '')
@@ -141,6 +170,18 @@ function getAvatarLabel(user) {
     .toUpperCase();
 
   return initials || 'U';
+}
+
+function normalizePosts(posts = []) {
+  return (posts || []).map((post) => ({
+    ...post,
+    comments: post.comments || [],
+    bookmarkedBy: post.bookmarkedBy || [],
+  }));
+}
+
+function extractHashtags(content = '') {
+  return (content.match(/#[\w-]+/g) || []).map((tag) => tag.toLowerCase());
 }
 
 export default function App() {
@@ -154,19 +195,26 @@ export default function App() {
   const [selectedProfileId, setSelectedProfileId] = useState('user-knot');
   const [viewMode, setViewMode] = useState('feed');
   const [postText, setPostText] = useState('');
+  const [commentDrafts, setCommentDrafts] = useState({});
   const [settingsForm, setSettingsForm] = useState({
     displayName: '',
     username: '',
     password: '',
     profileImage: '',
   });
+  const [notifications, setNotifications] = useState(defaultNotifications);
+  const [directMessages, setDirectMessages] = useState(defaultDirectMessages);
+  const [messageDraft, setMessageDraft] = useState('');
+  const [selectedChatUserId, setSelectedChatUserId] = useState('user-mila');
   const [feedback, setFeedback] = useState('Sign in to continue.');
 
   useEffect(() => {
     const stored = getInitialState();
     if (stored) {
       setUsers(normalizeUsers(stored.users || getDefaultUsers()));
-      setPosts(stored.posts || defaultPosts);
+      setPosts(normalizePosts(stored.posts || defaultPosts));
+      setNotifications(stored.notifications || defaultNotifications);
+      setDirectMessages(stored.directMessages || defaultDirectMessages);
       setAuthUser(stored.authUser || null);
       if (stored.authUser) {
         setSelectedProfileId(stored.authUser.id);
@@ -185,8 +233,8 @@ export default function App() {
     if (!hydrated) {
       return;
     }
-    saveState(users, posts, authUser);
-  }, [authUser, hydrated, posts, users]);
+    saveState(users, posts, authUser, notifications, directMessages);
+  }, [authUser, hydrated, posts, users, notifications, directMessages]);
 
   const selectedProfile = useMemo(() => {
     if (!authUser) {
@@ -220,6 +268,59 @@ export default function App() {
       .filter((post) => post.userId === selectedProfile.id)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [posts, selectedProfile]);
+
+  const notificationsForUser = useMemo(() => {
+    if (!authUser) {
+      return [];
+    }
+    return [...notifications]
+      .filter((note) => note.userId === authUser.id)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [authUser, notifications]);
+
+  const bookmarkedPosts = useMemo(() => {
+    if (!authUser) {
+      return [];
+    }
+    return posts.filter((post) => (post.bookmarkedBy || []).includes(authUser.id));
+  }, [authUser, posts]);
+
+  const communities = useMemo(() => defaultCommunities, []);
+
+  const selectedChatUser = useMemo(() => {
+    if (!authUser) {
+      return null;
+    }
+    return users.find((user) => user.id === selectedChatUserId) || null;
+  }, [authUser, selectedChatUserId, users]);
+
+  const conversationMessages = useMemo(() => {
+    if (!authUser || !selectedChatUser) {
+      return [];
+    }
+    return directMessages
+      .filter((message) => {
+        const isSentByAuth = message.senderId === authUser.id && message.recipientId === selectedChatUser.id;
+        const isSentToAuth = message.senderId === selectedChatUser.id && message.recipientId === authUser.id;
+        return isSentByAuth || isSentToAuth;
+      })
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  }, [authUser, directMessages, selectedChatUser]);
+
+  const trendingTags = useMemo(() => {
+    const counts = new Map();
+    posts.forEach((post) => {
+      extractHashtags(post.content).forEach((tag) => {
+        counts.set(tag, (counts.get(tag) || 0) + 1);
+      });
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([tag]) => tag);
+  }, [posts]);
+
+  const isFollowing = (userId) => (authUser?.following || []).includes(userId);
 
   const handleSignIn = () => {
     const username = authForm.username.trim().toLowerCase();
@@ -276,6 +377,8 @@ export default function App() {
       banned: false,
       profileImage: '',
       bio: 'New to Knot Social.',
+      followers: [],
+      following: [],
     };
 
     setUsers((prev) => [user, ...prev]);
@@ -353,11 +456,118 @@ export default function App() {
       userId: authUser.id,
       content: text,
       createdAt: new Date().toISOString(),
+      comments: [],
+      bookmarkedBy: [],
     };
 
     setPosts((prev) => [newPost, ...prev]);
     setPostText('');
     setFeedback('Post published.');
+  };
+
+  const toggleBookmark = (postId) => {
+    if (!authUser) {
+      return;
+    }
+
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) {
+          return post;
+        }
+        const alreadyBookmarked = (post.bookmarkedBy || []).includes(authUser.id);
+        return {
+          ...post,
+          bookmarkedBy: alreadyBookmarked
+            ? (post.bookmarkedBy || []).filter((id) => id !== authUser.id)
+            : [...(post.bookmarkedBy || []), authUser.id],
+        };
+      })
+    );
+    setFeedback('Bookmark updated.');
+  };
+
+  const handleAddComment = (postId) => {
+    if (!authUser) {
+      return;
+    }
+
+    const text = (commentDrafts[postId] || '').trim();
+    if (!text) {
+      setFeedback('Write a comment before sending.');
+      return;
+    }
+
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) {
+          return post;
+        }
+        return {
+          ...post,
+          comments: [
+            ...(post.comments || []),
+            {
+              id: `comment-${Date.now()}`,
+              userId: authUser.id,
+              text,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        };
+      })
+    );
+
+    setCommentDrafts((prev) => ({ ...prev, [postId]: '' }));
+    setNotifications((prev) => [
+      ...prev,
+      {
+        id: `note-${Date.now()}`,
+        userId: authUser.id,
+        text: `You commented on a post.`,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setFeedback('Comment posted.');
+  };
+
+  const toggleFollow = (userId) => {
+    if (!authUser || userId === authUser.id) {
+      return;
+    }
+
+    const following = (authUser.following || []).includes(userId)
+      ? (authUser.following || []).filter((id) => id !== userId)
+      : [...(authUser.following || []), userId];
+
+    const updatedAuthUser = { ...authUser, following };
+
+    setUsers((prev) =>
+      prev.map((user) => {
+        if (user.id === authUser.id) {
+          return { ...user, following };
+        }
+        if (user.id === userId) {
+          const followers = (user.followers || []).includes(authUser.id)
+            ? (user.followers || []).filter((id) => id !== authUser.id)
+            : [...(user.followers || []), authUser.id];
+          return { ...user, followers };
+        }
+        return user;
+      })
+    );
+
+    setAuthUser(updatedAuthUser);
+    setNotifications((prev) => [
+      ...prev,
+      {
+        id: `note-${Date.now()}`,
+        userId: userId,
+        text: `${updatedAuthUser.displayName} ${following.includes(userId) ? 'followed' : 'unfollowed'} you.`,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setFeedback(following.includes(userId) ? 'Followed successfully.' : 'Unfollowed successfully.');
   };
 
   const toggleBan = (userId) => {
@@ -380,6 +590,69 @@ export default function App() {
       prev.map((user) => (user.id === userId ? { ...user, verified: !user.verified } : user))
     );
     setFeedback('Verification state updated.');
+  };
+
+  const toggleJoinCommunity = (communityId) => {
+    if (!authUser) {
+      return;
+    }
+
+    setNotifications((prev) => [
+      ...prev,
+      {
+        id: `note-${Date.now()}`,
+        userId: authUser.id,
+        text: `Community update received.`,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setFeedback('Community membership updated.');
+  };
+
+  const isCommunityMember = (communityId) => defaultCommunities.find((community) => community.id === communityId)?.members.includes(authUser?.id);
+
+  const handleSendMessage = () => {
+    if (!authUser || !selectedChatUser) {
+      return;
+    }
+
+    const text = messageDraft.trim();
+    if (!text) {
+      setFeedback('Write a message before sending.');
+      return;
+    }
+
+    setDirectMessages((prev) => [
+      ...prev,
+      {
+        id: `dm-${Date.now()}`,
+        senderId: authUser.id,
+        recipientId: selectedChatUser.id,
+        text,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setNotifications((prev) => [
+      ...prev,
+      {
+        id: `note-${Date.now()}`,
+        userId: selectedChatUser.id,
+        text: `${authUser.displayName} sent you a direct message.`,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setMessageDraft('');
+    setFeedback('Direct message sent.');
+  };
+
+  const hasTag = (content, term) => {
+    const normalized = (term || '').trim().toLowerCase();
+    if (!normalized) {
+      return true;
+    }
+    const tags = extractHashtags(content).map((tag) => tag.toLowerCase());
+    const tagMatch = normalized.startsWith('#') ? tags.includes(normalized) : tags.includes(`#${normalized}`);
+    return tagMatch || content.toLowerCase().includes(normalized);
   };
 
   if (!authUser) {
@@ -457,8 +730,26 @@ export default function App() {
             <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('profile'); setSelectedProfileId(authUser.id); setFeedback('Viewing your profile.'); }}>
               <Text style={styles.navText}>Profile</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('settings'); setFeedback('Editing your settings.'); }}>
-              <Text style={styles.navText}>Settings</Text>
+            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('profiles'); setFeedback('Browsing profiles and follows.'); }}>
+              <Text style={styles.navText}>Profiles & follows</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('notifications'); setFeedback('Checking your notifications.'); }}>
+              <Text style={styles.navText}>Notifications</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('comments'); setFeedback('Viewing comments and replies.'); }}>
+              <Text style={styles.navText}>Comments & replies</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('hashtags'); setFeedback('Searching tags and conversations.'); }}>
+              <Text style={styles.navText}>Search & hashtags</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('bookmarks'); setFeedback('Viewing your saved posts.'); }}>
+              <Text style={styles.navText}>Bookmarks</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('messages'); setFeedback('Opening your inbox.'); }}>
+              <Text style={styles.navText}>Direct messages</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('communities'); setFeedback('Joining communities.'); }}>
+              <Text style={styles.navText}>Communities</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.primaryButton} onPress={handleCreatePost}>
               <Text style={styles.primaryButtonText}>Post</Text>
@@ -472,31 +763,10 @@ export default function App() {
             {viewMode === 'settings' ? (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>Settings</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Display name"
-                  value={settingsForm.displayName}
-                  onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, displayName: value }))}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Username"
-                  value={settingsForm.username}
-                  onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, username: value }))}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  secureTextEntry
-                  value={settingsForm.password}
-                  onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, password: value }))}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Profile image URL"
-                  value={settingsForm.profileImage}
-                  onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, profileImage: value }))}
-                />
+                <TextInput style={styles.input} placeholder="Display name" value={settingsForm.displayName} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, displayName: value }))} />
+                <TextInput style={styles.input} placeholder="Username" value={settingsForm.username} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, username: value }))} />
+                <TextInput style={styles.input} placeholder="Password" secureTextEntry value={settingsForm.password} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, password: value }))} />
+                <TextInput style={styles.input} placeholder="Profile image URL" value={settingsForm.profileImage} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, profileImage: value }))} />
                 <TouchableOpacity style={styles.primaryButton} onPress={handleUpdateSettings}>
                   <Text style={styles.primaryButtonText}>Save settings</Text>
                 </TouchableOpacity>
@@ -514,15 +784,22 @@ export default function App() {
                         )}
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.profileName}>
-                          {selectedProfile.displayName}
-                          {selectedProfile.verified ? <Text style={styles.badge}> Verified</Text> : null}
-                        </Text>
+                        <View style={styles.inlineRow}>
+                          <Text style={styles.profileName}>{selectedProfile.displayName}</Text>
+                          {selectedProfile.verified ? <VerifiedBadge /> : null}
+                        </View>
                         <Text style={styles.userMetaText}>@{selectedProfile.username}</Text>
                         <Text style={styles.profileBio}>{selectedProfile.bio}</Text>
                       </View>
                     </View>
-                    <Text style={styles.helperText}>Role: {selectedProfile.role}</Text>
+                    <View style={styles.inlineRow}>
+                      <Text style={styles.helperText}>Role: {selectedProfile.role}</Text>
+                      {selectedProfile.id !== authUser.id ? (
+                        <TouchableOpacity style={styles.smallButton} onPress={() => toggleFollow(selectedProfile.id)}>
+                          <Text style={styles.smallButtonText}>{isFollowing(selectedProfile.id) ? 'Unfollow' : 'Follow'}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
                     {selectedProfile.banned ? <Text style={styles.bannedText}>Banned</Text> : null}
                     <View style={styles.composeCard}>
                       <Text style={styles.composeLabel}>Posts by {selectedProfile.displayName}</Text>
@@ -537,6 +814,130 @@ export default function App() {
                     </View>
                   </>
                 ) : null}
+              </View>
+            ) : viewMode === 'profiles' ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Profiles & follows</Text>
+                {users.map((user) => (
+                  <View key={user.id} style={styles.listItem}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.inlineRow}>
+                        <Text style={styles.userNameText}>{user.displayName}</Text>
+                        {user.verified ? <VerifiedBadge /> : null}
+                      </View>
+                      <Text style={styles.userMetaText}>@{user.username}</Text>
+                      <Text style={styles.helperText}>{(user.followers || []).length} followers • {(user.following || []).length} following</Text>
+                    </View>
+                    {user.id !== authUser.id ? (
+                      <TouchableOpacity style={styles.smallButton} onPress={() => toggleFollow(user.id)}>
+                        <Text style={styles.smallButtonText}>{isFollowing(user.id) ? 'Unfollow' : 'Follow'}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : viewMode === 'notifications' ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Notifications</Text>
+                {notificationsForUser.length === 0 ? (
+                  <Text style={styles.helperText}>You are all caught up.</Text>
+                ) : notificationsForUser.map((note) => (
+                  <View key={note.id} style={styles.listItem}>
+                    <Text style={styles.postText}>{note.text}</Text>
+                    <Text style={styles.helperText}>{new Date(note.createdAt).toLocaleString()}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : viewMode === 'comments' ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Comments & replies</Text>
+                {orderedPosts.map((post) => (
+                  <View key={post.id} style={styles.postCard}>
+                    <Text style={styles.postText}>{post.content}</Text>
+                    <Text style={styles.helperText}>{new Date(post.createdAt).toLocaleString()}</Text>
+                    {(post.comments || []).map((comment) => {
+                      const author = users.find((user) => user.id === comment.userId) || authUser;
+                      return (
+                        <View key={comment.id} style={styles.commentBox}>
+                          <View style={styles.inlineRow}>
+                            <Text style={styles.userNameText}>{author?.displayName || 'You'}</Text>
+                            {author?.verified ? <VerifiedBadge /> : null}
+                          </View>
+                          <Text style={styles.postText}>{comment.text}</Text>
+                        </View>
+                      );
+                    })}
+                    <TextInput style={styles.postInput} placeholder="Reply to this post" value={commentDrafts[post.id] || ''} onChangeText={(value) => setCommentDrafts((prev) => ({ ...prev, [post.id]: value }))} />
+                    <TouchableOpacity style={styles.smallButton} onPress={() => handleAddComment(post.id)}>
+                      <Text style={styles.smallButtonText}>Comment</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ) : viewMode === 'hashtags' ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Search & hashtags</Text>
+                <TextInput style={styles.input} placeholder="Search by hashtag or topic" value={searchQuery} onChangeText={setSearchQuery} />
+                <Text style={styles.helperText}>Trending: {trendingTags.join(', ')}</Text>
+                {posts.filter((post) => hasTag(post.content, searchQuery)).map((post) => (
+                  <View key={post.id} style={styles.postCard}>
+                    <Text style={styles.postText}>{post.content}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : viewMode === 'bookmarks' ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Bookmarks</Text>
+                {bookmarkedPosts.length === 0 ? (
+                  <Text style={styles.helperText}>You have no saved posts yet.</Text>
+                ) : bookmarkedPosts.map((post) => (
+                  <View key={post.id} style={styles.postCard}>
+                    <Text style={styles.postText}>{post.content}</Text>
+                    <Text style={styles.helperText}>{new Date(post.createdAt).toLocaleString()}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : viewMode === 'messages' ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Direct messages</Text>
+                <View style={styles.messageLayout}>
+                  <View style={styles.messageList}>
+                    {users.filter((user) => user.id !== authUser.id).map((user) => (
+                      <TouchableOpacity key={user.id} style={styles.messageRow} onPress={() => setSelectedChatUserId(user.id)}>
+                        <Text style={styles.userNameText}>{user.displayName}</Text>
+                        <Text style={styles.userMetaText}>@{user.username}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.helperText}>Chat with @{selectedChatUser?.username || 'a friend'}</Text>
+                    {conversationMessages.map((message) => (
+                      <View key={message.id} style={message.senderId === authUser.id ? styles.sentBubble : styles.receivedBubble}>
+                        <Text style={message.senderId === authUser.id ? styles.sentBubbleText : styles.receivedBubbleText}>{message.text}</Text>
+                      </View>
+                    ))}
+                    <TextInput style={styles.postInput} placeholder="Write a private message" value={messageDraft} onChangeText={setMessageDraft} />
+                    <TouchableOpacity style={styles.primaryButton} onPress={handleSendMessage}>
+                      <Text style={styles.primaryButtonText}>Send</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ) : viewMode === 'communities' ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Communities</Text>
+                {communities.map((community) => (
+                  <View key={community.id} style={styles.postCard}>
+                    <View style={styles.inlineRow}>
+                      <Text style={styles.userNameText}>{community.name}</Text>
+                      <Text style={styles.helperText}>{community.members.length} members</Text>
+                    </View>
+                    <Text style={styles.postText}>{community.description}</Text>
+                    <TouchableOpacity style={styles.smallButton} onPress={() => toggleJoinCommunity(community.id)}>
+                      <Text style={styles.smallButtonText}>{isCommunityMember(community.id) ? 'Leave' : 'Join'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
             ) : (
               <>
@@ -555,13 +956,7 @@ export default function App() {
 
                 <View style={styles.composeCard}>
                   <Text style={styles.composeLabel}>What’s happening?</Text>
-                  <TextInput
-                    style={styles.postInput}
-                    multiline
-                    placeholder="Share an update with the community..."
-                    value={postText}
-                    onChangeText={setPostText}
-                  />
+                  <TextInput style={styles.postInput} multiline placeholder="Share an update with the community..." value={postText} onChangeText={setPostText} />
                   <TouchableOpacity style={styles.primaryButton} onPress={handleCreatePost}>
                     <Text style={styles.primaryButtonText}>Publish</Text>
                   </TouchableOpacity>
@@ -569,6 +964,7 @@ export default function App() {
 
                 {orderedPosts.map((post) => {
                   const author = users.find((user) => user.id === post.userId) || authUser;
+                  const isBookmarked = (post.bookmarkedBy || []).includes(authUser.id);
                   return (
                     <View key={post.id} style={styles.postCard}>
                       <View style={styles.postHeader}>
@@ -580,15 +976,39 @@ export default function App() {
                           )}
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.postAuthor}>
-                            {author?.displayName || 'Unknown'}
-                            {author?.verified ? <Text style={styles.badge}> Verified</Text> : null}
-                          </Text>
+                          <View style={styles.inlineRow}>
+                            <Text style={styles.postAuthor}>{author?.displayName || 'Unknown'}</Text>
+                            {author?.verified ? <VerifiedBadge /> : null}
+                          </View>
                           <Text style={styles.userMetaText}>@{author?.username || 'unknown'}</Text>
                         </View>
                       </View>
                       <Text style={styles.postText}>{post.content}</Text>
                       <Text style={styles.helperText}>{new Date(post.createdAt).toLocaleString()}</Text>
+                      <View style={styles.inlineRow}>
+                        <TouchableOpacity style={styles.smallButton} onPress={() => toggleBookmark(post.id)}>
+                          <Text style={styles.smallButtonText}>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.smallButton} onPress={() => setViewMode('comments')}>
+                          <Text style={styles.smallButtonText}>View comments</Text>
+                        </TouchableOpacity>
+                      </View>
+                      {(post.comments || []).slice(0, 2).map((comment) => {
+                        const commentAuthor = users.find((user) => user.id === comment.userId) || authUser;
+                        return (
+                          <View key={comment.id} style={styles.commentBox}>
+                            <View style={styles.inlineRow}>
+                              <Text style={styles.userNameText}>{commentAuthor?.displayName || 'You'}</Text>
+                              {commentAuthor?.verified ? <VerifiedBadge /> : null}
+                            </View>
+                            <Text style={styles.postText}>{comment.text}</Text>
+                          </View>
+                        );
+                      })}
+                      <TextInput style={styles.postInput} placeholder="Write a comment" value={commentDrafts[post.id] || ''} onChangeText={(value) => setCommentDrafts((prev) => ({ ...prev, [post.id]: value }))} />
+                      <TouchableOpacity style={styles.smallButton} onPress={() => handleAddComment(post.id)}>
+                        <Text style={styles.smallButtonText}>Comment</Text>
+                      </TouchableOpacity>
                     </View>
                   );
                 })}
@@ -599,12 +1019,7 @@ export default function App() {
           <View style={styles.rightColumn}>
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Search users</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Try knot"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
+              <TextInput style={styles.input} placeholder="Try knot" value={searchQuery} onChangeText={setSearchQuery} />
               {visibleUsers.map((user) => (
                 <TouchableOpacity
                   key={user.id}
@@ -624,12 +1039,22 @@ export default function App() {
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.userNameText}>{user.displayName}</Text>
+                    <View style={styles.inlineRow}>
+                      <Text style={styles.userNameText}>{user.displayName}</Text>
+                      {user.verified ? <VerifiedBadge /> : null}
+                    </View>
                     <Text style={styles.userMetaText}>@{user.username}</Text>
-                    {user.verified ? <Text style={styles.badge}>Verified</Text> : null}
                   </View>
                 </TouchableOpacity>
               ))}
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Quick stats</Text>
+              <Text style={styles.helperText}>Followers: {(authUser.followers || []).length}</Text>
+              <Text style={styles.helperText}>Following: {(authUser.following || []).length}</Text>
+              <Text style={styles.helperText}>Bookmarks: {bookmarkedPosts.length}</Text>
+              <Text style={styles.helperText}>DMs: {directMessages.filter((message) => message.senderId === authUser.id || message.recipientId === authUser.id).length}</Text>
             </View>
 
             {authUser.role === 'admin' ? (
@@ -638,9 +1063,11 @@ export default function App() {
                 {users.map((user) => (
                   <View key={user.id} style={styles.adminRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.userNameText}>{user.displayName}</Text>
+                      <View style={styles.inlineRow}>
+                        <Text style={styles.userNameText}>{user.displayName}</Text>
+                        {user.verified ? <VerifiedBadge /> : null}
+                      </View>
                       <Text style={styles.userMetaText}>@{user.username}</Text>
-                      {user.verified ? <Text style={styles.badge}>Verified</Text> : null}
                       {user.banned ? <Text style={styles.bannedText}>Banned</Text> : null}
                     </View>
                     <View style={styles.adminActions}>
@@ -658,6 +1085,14 @@ export default function App() {
           </View>
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function VerifiedBadge() {
+  return (
+    <View style={styles.badgeChip}>
+      <Text style={styles.badgeChipText}>✓ Verified</Text>
     </View>
   );
 }
@@ -704,7 +1139,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     alignSelf: 'flex-start',
-    minHeight: 480,
+    minHeight: 520,
   },
   brand: {
     fontSize: 28,
@@ -848,38 +1283,6 @@ const styles = StyleSheet.create({
     color: '#1d4ed8',
     fontWeight: '600',
   },
-  demoCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 14,
-    marginBottom: 16,
-  },
-  demoTitle: {
-    color: '#0f172a',
-    fontWeight: '700',
-    fontSize: 14,
-    marginBottom: 6,
-  },
-  demoText: {
-    color: '#475569',
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  demoButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#111827',
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginTop: 8,
-  },
-  demoButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -920,11 +1323,6 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 12,
   },
-  badge: {
-    color: '#1d4ed8',
-    fontWeight: '700',
-    fontSize: 12,
-  },
   helperText: {
     color: '#6b7280',
     fontSize: 12,
@@ -955,6 +1353,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    marginTop: 10,
   },
   postHeader: {
     flexDirection: 'row',
@@ -994,5 +1393,112 @@ const styles = StyleSheet.create({
   adminActions: {
     flexDirection: 'column',
     gap: 4,
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badgeChip: {
+    backgroundColor: '#dbeafe',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  badgeChipText: {
+    color: '#1d4ed8',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  commentBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 8,
+  },
+  messageLayout: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  messageList: {
+    width: 140,
+    gap: 6,
+  },
+  messageRow: {
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+  },
+  sentBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#1d4ed8',
+    padding: 10,
+    borderRadius: 14,
+    marginTop: 8,
+  },
+  sentBubbleText: {
+    color: '#fff',
+  },
+  receivedBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#f3f4f6',
+    padding: 10,
+    borderRadius: 14,
+    marginTop: 8,
+  },
+  receivedBubbleText: {
+    color: '#111827',
+  },
+  heroBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#eff6ff',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10,
+  },
+  heroBadgeText: {
+    color: '#1d4ed8',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  appTitle: {
+    fontSize: 38,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  subtitle: {
+    color: '#6b7280',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  backgroundGlow1: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: '#bfdbfe',
+    top: -70,
+    left: -60,
+    opacity: 0.4,
+  },
+  backgroundGlow2: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: '#dbeafe',
+    bottom: -40,
+    right: -40,
+    opacity: 0.45,
   },
 });
