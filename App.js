@@ -660,24 +660,27 @@ export default function App() {
       <View style={styles.screen}>
         <View style={styles.backgroundGlow1} />
         <View style={styles.backgroundGlow2} />
-        <StatusBar style="dark" />
+        <View style={styles.backgroundGlow3} />
+        <StatusBar style="light" />
         <ScrollView contentContainerStyle={styles.authContainer}>
           <View style={styles.authCard}>
-            <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>Live social hub</Text></View>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>✦ Live social hub</Text>
+            </View>
             <Text style={styles.appTitle}>Knot</Text>
-            <Text style={styles.subtitle}>Sign in or create an account on the web version.</Text>
+            <Text style={styles.subtitle}>Connect, post, and grow your community.</Text>
             <View style={styles.toggleRow}>
               <TouchableOpacity
                 style={[styles.toggleButton, authMode === 'signin' && styles.toggleButtonActive]}
                 onPress={() => setAuthMode('signin')}
               >
-                <Text style={styles.toggleText}>Sign in</Text>
+                <Text style={[styles.toggleText, authMode === 'signin' && styles.toggleTextActive]}>Sign in</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.toggleButton, authMode === 'signup' && styles.toggleButtonActive]}
                 onPress={() => setAuthMode('signup')}
               >
-                <Text style={styles.toggleText}>Sign up</Text>
+                <Text style={[styles.toggleText, authMode === 'signup' && styles.toggleTextActive]}>Sign up</Text>
               </TouchableOpacity>
             </View>
 
@@ -687,6 +690,7 @@ export default function App() {
               <TextInput
                 style={styles.input}
                 placeholder="Display name"
+                placeholderTextColor="#6b7280"
                 value={authForm.displayName}
                 onChangeText={(value) => setAuthForm((prev) => ({ ...prev, displayName: value }))}
               />
@@ -695,12 +699,14 @@ export default function App() {
             <TextInput
               style={styles.input}
               placeholder="Username"
+              placeholderTextColor="#6b7280"
               value={authForm.username}
               onChangeText={(value) => setAuthForm((prev) => ({ ...prev, username: value }))}
             />
             <TextInput
               style={styles.input}
               placeholder="Password"
+              placeholderTextColor="#6b7280"
               secureTextEntry
               value={authForm.password}
               onChangeText={(value) => setAuthForm((prev) => ({ ...prev, password: value }))}
@@ -709,7 +715,7 @@ export default function App() {
               style={styles.primaryButton}
               onPress={authMode === 'signin' ? handleSignIn : handleSignUp}
             >
-              <Text style={styles.primaryButtonText}>{authMode === 'signin' ? 'Sign in' : 'Create account'}</Text>
+              <Text style={styles.primaryButtonText}>{authMode === 'signin' ? '→ Sign in' : '→ Create account'}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -717,42 +723,41 @@ export default function App() {
     );
   }
 
+  const navItems = [
+    { mode: 'feed',          icon: '⌂',  label: 'Home' },
+    { mode: 'profile',       icon: '◉',  label: 'Profile' },
+    { mode: 'profiles',      icon: '⊕',  label: 'Profiles & follows' },
+    { mode: 'notifications', icon: '◎',  label: 'Notifications' },
+    { mode: 'comments',      icon: '◈',  label: 'Comments & replies' },
+    { mode: 'hashtags',      icon: '◇',  label: 'Search & hashtags' },
+    { mode: 'bookmarks',     icon: '◆',  label: 'Bookmarks' },
+    { mode: 'messages',      icon: '✉',  label: 'Direct messages' },
+    { mode: 'communities',   icon: '⬡',  label: 'Communities' },
+  ];
+
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.appShell}>
           <View style={styles.sidebar}>
             <Text style={styles.brand}>Knot</Text>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('feed'); setFeedback('Viewing your home feed.'); }}>
-              <Text style={styles.navText}>Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('profile'); setSelectedProfileId(authUser.id); setFeedback('Viewing your profile.'); }}>
-              <Text style={styles.navText}>Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('profiles'); setFeedback('Browsing profiles and follows.'); }}>
-              <Text style={styles.navText}>Profiles & follows</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('notifications'); setFeedback('Checking your notifications.'); }}>
-              <Text style={styles.navText}>Notifications</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('comments'); setFeedback('Viewing comments and replies.'); }}>
-              <Text style={styles.navText}>Comments & replies</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('hashtags'); setFeedback('Searching tags and conversations.'); }}>
-              <Text style={styles.navText}>Search & hashtags</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('bookmarks'); setFeedback('Viewing your saved posts.'); }}>
-              <Text style={styles.navText}>Bookmarks</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('messages'); setFeedback('Opening your inbox.'); }}>
-              <Text style={styles.navText}>Direct messages</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => { setViewMode('communities'); setFeedback('Joining communities.'); }}>
-              <Text style={styles.navText}>Communities</Text>
-            </TouchableOpacity>
+            {navItems.map(({ mode, icon, label }) => (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.navItem, viewMode === mode && styles.navItemActive]}
+                onPress={() => {
+                  if (mode === 'profile') setSelectedProfileId(authUser.id);
+                  setViewMode(mode);
+                  setFeedback('');
+                }}
+              >
+                <Text style={[styles.navIcon, viewMode === mode && styles.navIconActive]}>{icon}</Text>
+                <Text style={[styles.navText, viewMode === mode && styles.navTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
             <TouchableOpacity style={styles.primaryButton} onPress={handleCreatePost}>
-              <Text style={styles.primaryButtonText}>Post</Text>
+              <Text style={styles.primaryButtonText}>✦ Post</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryButton} onPress={handleSignOut}>
               <Text style={styles.secondaryButtonText}>Sign out</Text>
@@ -765,8 +770,8 @@ export default function App() {
                 <Text style={styles.sectionTitle}>Settings</Text>
                 <TextInput style={styles.input} placeholder="Display name" value={settingsForm.displayName} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, displayName: value }))} />
                 <TextInput style={styles.input} placeholder="Username" value={settingsForm.username} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, username: value }))} />
-                <TextInput style={styles.input} placeholder="Password" secureTextEntry value={settingsForm.password} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, password: value }))} />
-                <TextInput style={styles.input} placeholder="Profile image URL" value={settingsForm.profileImage} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, profileImage: value }))} />
+                <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#6b7280" secureTextEntry value={settingsForm.password} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, password: value }))} />
+                <TextInput style={styles.input} placeholder="Profile image URL" placeholderTextColor="#6b7280" value={settingsForm.profileImage} onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, profileImage: value }))} />
                 <TouchableOpacity style={styles.primaryButton} onPress={handleUpdateSettings}>
                   <Text style={styles.primaryButtonText}>Save settings</Text>
                 </TouchableOpacity>
@@ -867,7 +872,7 @@ export default function App() {
                         </View>
                       );
                     })}
-                    <TextInput style={styles.postInput} placeholder="Reply to this post" value={commentDrafts[post.id] || ''} onChangeText={(value) => setCommentDrafts((prev) => ({ ...prev, [post.id]: value }))} />
+                    <TextInput style={styles.postInput} placeholder="Reply to this post" placeholderTextColor="#6b7280" value={commentDrafts[post.id] || ''} onChangeText={(value) => setCommentDrafts((prev) => ({ ...prev, [post.id]: value }))} />
                     <TouchableOpacity style={styles.smallButton} onPress={() => handleAddComment(post.id)}>
                       <Text style={styles.smallButtonText}>Comment</Text>
                     </TouchableOpacity>
@@ -877,7 +882,7 @@ export default function App() {
             ) : viewMode === 'hashtags' ? (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>Search & hashtags</Text>
-                <TextInput style={styles.input} placeholder="Search by hashtag or topic" value={searchQuery} onChangeText={setSearchQuery} />
+                <TextInput style={styles.input} placeholder="Search by hashtag or topic" placeholderTextColor="#6b7280" value={searchQuery} onChangeText={setSearchQuery} />
                 <Text style={styles.helperText}>Trending: {trendingTags.join(', ')}</Text>
                 {posts.filter((post) => hasTag(post.content, searchQuery)).map((post) => (
                   <View key={post.id} style={styles.postCard}>
@@ -916,7 +921,7 @@ export default function App() {
                         <Text style={message.senderId === authUser.id ? styles.sentBubbleText : styles.receivedBubbleText}>{message.text}</Text>
                       </View>
                     ))}
-                    <TextInput style={styles.postInput} placeholder="Write a private message" value={messageDraft} onChangeText={setMessageDraft} />
+                    <TextInput style={styles.postInput} placeholder="Write a private message" placeholderTextColor="#6b7280" value={messageDraft} onChangeText={setMessageDraft} />
                     <TouchableOpacity style={styles.primaryButton} onPress={handleSendMessage}>
                       <Text style={styles.primaryButtonText}>Send</Text>
                     </TouchableOpacity>
@@ -944,7 +949,7 @@ export default function App() {
                 <View style={styles.feedHeader}>
                   <View>
                     <Text style={styles.feedTitle}>Home</Text>
-                    <Text style={styles.feedSubtitle}>A Twitter-style social feed for Knot.</Text>
+                    <Text style={styles.feedSubtitle}>Your live social feed — what's happening right now.</Text>
                   </View>
                 </View>
 
@@ -1005,7 +1010,7 @@ export default function App() {
                           </View>
                         );
                       })}
-                      <TextInput style={styles.postInput} placeholder="Write a comment" value={commentDrafts[post.id] || ''} onChangeText={(value) => setCommentDrafts((prev) => ({ ...prev, [post.id]: value }))} />
+                      <TextInput style={styles.postInput} placeholder="Write a comment" placeholderTextColor="#6b7280" value={commentDrafts[post.id] || ''} onChangeText={(value) => setCommentDrafts((prev) => ({ ...prev, [post.id]: value }))} />
                       <TouchableOpacity style={styles.smallButton} onPress={() => handleAddComment(post.id)}>
                         <Text style={styles.smallButtonText}>Comment</Text>
                       </TouchableOpacity>
@@ -1019,7 +1024,7 @@ export default function App() {
           <View style={styles.rightColumn}>
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Search users</Text>
-              <TextInput style={styles.input} placeholder="Try knot" value={searchQuery} onChangeText={setSearchQuery} />
+              <TextInput style={styles.input} placeholder="Try knot" placeholderTextColor="#6b7280" value={searchQuery} onChangeText={setSearchQuery} />
               {visibleUsers.map((user) => (
                 <TouchableOpacity
                   key={user.id}
@@ -1100,63 +1105,145 @@ function VerifiedBadge() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f7f9fa',
+    backgroundColor: '#0d0d14',
   },
   authContainer: {
     flexGrow: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f7f9fa',
-  },
-  authCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    backgroundColor: '#0d0d14',
   },
   content: {
     padding: 16,
-    backgroundColor: '#f7f9fa',
+    backgroundColor: '#0d0d14',
   },
   appShell: {
     flexDirection: 'row',
-    maxWidth: 1280,
+    maxWidth: 1300,
     alignSelf: 'center',
     width: '100%',
     gap: 16,
   },
+  authCard: {
+    backgroundColor: '#13131f',
+    borderRadius: 28,
+    padding: 32,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: '#2a2a40',
+    shadowColor: '#7c3aed',
+    shadowOpacity: 0.18,
+    shadowRadius: 40,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 10,
+  },
+  appTitle: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: '#f0e6ff',
+    letterSpacing: -1.5,
+    marginBottom: 6,
+  },
+  subtitle: {
+    color: '#7c7c9a',
+    fontSize: 14,
+    marginBottom: 22,
+  },
+  heroBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1e1030',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#5b21b6',
+  },
+  heroBadgeText: {
+    color: '#a78bfa',
+    fontWeight: '700',
+    fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  backgroundGlow1: {
+    position: 'absolute',
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: '#7c3aed',
+    top: -140,
+    left: -100,
+    opacity: 0.12,
+  },
+  backgroundGlow2: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: '#2563eb',
+    bottom: -80,
+    right: -60,
+    opacity: 0.1,
+  },
+  backgroundGlow3: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: '#ec4899',
+    top: '40%',
+    right: -40,
+    opacity: 0.06,
+  },
   sidebar: {
-    width: 220,
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
+    width: 230,
+    backgroundColor: '#13131f',
+    borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#1e1e30',
     alignSelf: 'flex-start',
-    minHeight: 520,
+    minHeight: 580,
   },
   brand: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 20,
-    letterSpacing: -0.5,
+    fontWeight: '900',
+    color: '#c4b5fd',
+    marginBottom: 22,
+    letterSpacing: -1,
   },
   navItem: {
-    borderRadius: 999,
-    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 12,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    marginBottom: 8,
-    backgroundColor: '#f3f4f6',
+    marginBottom: 4,
+  },
+  navItemActive: {
+    backgroundColor: '#1e1030',
+    borderWidth: 1,
+    borderColor: '#5b21b6',
+  },
+  navIcon: {
+    fontSize: 15,
+    color: '#55556b',
+    width: 18,
+    textAlign: 'center',
+  },
+  navIconActive: {
+    color: '#a78bfa',
   },
   navText: {
-    color: '#111827',
+    color: '#6b6b82',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  navTextActive: {
+    color: '#c4b5fd',
     fontWeight: '700',
   },
   feedColumn: {
@@ -1164,124 +1251,221 @@ const styles = StyleSheet.create({
     minWidth: 320,
     gap: 12,
   },
-  feedHeader: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  feedTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  feedSubtitle: {
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  composeCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  composeLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
   rightColumn: {
     width: 280,
     gap: 12,
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#13131f',
     borderRadius: 20,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#1e1e30',
+  },
+  feedHeader: {
+    backgroundColor: '#13131f',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#1e1e30',
+  },
+  feedTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#e8e0ff',
+    letterSpacing: -0.5,
+  },
+  feedSubtitle: {
+    color: '#55556b',
+    marginTop: 4,
+    fontSize: 13,
+  },
+  composeCard: {
+    backgroundColor: '#13131f',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#2a1f4a',
+  },
+  composeLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#c4b5fd',
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#e8e0ff',
+    marginBottom: 12,
+    letterSpacing: -0.3,
+  },
+  postCard: {
+    backgroundColor: '#13131f',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#1e1e30',
+    marginTop: 10,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 10,
+  },
+  postAuthor: {
+    fontWeight: '700',
+    color: '#e8e0ff',
+    fontSize: 14,
+  },
+  postText: {
+    color: '#b0b0c8',
+    lineHeight: 22,
+    fontSize: 14,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#2a2a40',
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     marginBottom: 10,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#0d0d14',
+    color: '#e8e0ff',
+    fontSize: 14,
   },
   postInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#2a2a40',
     borderRadius: 12,
-    padding: 12,
+    padding: 14,
     minHeight: 90,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#0d0d14',
+    color: '#e8e0ff',
     marginBottom: 10,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  toggleButton: {
-    flex: 1,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-  },
-  toggleButtonActive: {
-    backgroundColor: '#1d4ed8',
-    borderColor: '#1d4ed8',
-  },
-  toggleText: {
-    color: '#111827',
-    fontWeight: '600',
+    fontSize: 14,
   },
   primaryButton: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#7c3aed',
     borderRadius: 999,
-    paddingVertical: 12,
+    paddingVertical: 13,
     alignItems: 'center',
     marginTop: 6,
+    shadowColor: '#7c3aed',
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
   },
   primaryButtonText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.2,
   },
   secondaryButton: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'transparent',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#2a2a40',
+    alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#1d4ed8',
+    color: '#7c7c9a',
     fontWeight: '700',
+    fontSize: 13,
+  },
+  smallButton: {
+    backgroundColor: '#1a1030',
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#3b1d8a',
+  },
+  smallButtonText: {
+    color: '#a78bfa',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 14,
+    backgroundColor: '#0d0d14',
+    borderRadius: 999,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#2a2a40',
+  },
+  toggleButton: {
+    flex: 1,
+    borderRadius: 999,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#7c3aed',
+    shadowColor: '#7c3aed',
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  toggleText: {
+    color: '#55556b',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  toggleTextActive: {
+    color: '#fff',
+    fontWeight: '800',
   },
   notice: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#1a0f2e',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: '#4c1d95',
   },
   noticeText: {
-    color: '#1d4ed8',
+    color: '#a78bfa',
     fontWeight: '600',
+    fontSize: 13,
+  },
+  avatarSmall: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1e1030',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#5b21b6',
+  },
+  avatarLarge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1e1030',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#7c3aed',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarText: {
+    fontWeight: '800',
+    color: '#a78bfa',
+    fontSize: 15,
   },
   userRow: {
     flexDirection: 'row',
@@ -1289,97 +1473,50 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 8,
   },
-  avatarSmall: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#dbeafe',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  avatarLarge: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#dbeafe',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarText: {
-    fontWeight: '700',
-    color: '#1d4ed8',
-  },
   userNameText: {
     fontWeight: '700',
-    color: '#111827',
+    color: '#e8e0ff',
+    fontSize: 13,
   },
   userMetaText: {
-    color: '#6b7280',
+    color: '#55556b',
     fontSize: 12,
   },
   helperText: {
-    color: '#6b7280',
+    color: '#55556b',
     fontSize: 12,
     marginTop: 4,
   },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
+    marginBottom: 10,
   },
   profileName: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '800',
+    color: '#e8e0ff',
   },
   profileBio: {
-    color: '#374151',
+    color: '#7c7c9a',
     marginTop: 4,
+    fontSize: 13,
   },
   bannedText: {
-    color: '#dc2626',
+    color: '#f87171',
     fontWeight: '700',
     marginTop: 6,
+    fontSize: 12,
   },
-  postCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginTop: 10,
-  },
-  postHeader: {
+  listItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 10,
-    marginBottom: 8,
-  },
-  postAuthor: {
-    fontWeight: '700',
-    color: '#111827',
-  },
-  postText: {
-    color: '#374151',
-    lineHeight: 20,
-  },
-  smallButton: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    marginTop: 4,
-  },
-  smallButtonText: {
-    color: '#1d4ed8',
-    fontWeight: '700',
-    fontSize: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#1a1a28',
   },
   adminRow: {
     flexDirection: 'row',
@@ -1388,7 +1525,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: '#1a1a28',
   },
   adminActions: {
     flexDirection: 'column',
@@ -1400,105 +1537,72 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   badgeChip: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#1e1030',
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: '#5b21b6',
   },
   badgeChipText: {
-    color: '#1d4ed8',
+    color: '#a78bfa',
     fontWeight: '700',
-    fontSize: 12,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    fontSize: 11,
   },
   commentBox: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#0f0f1a',
     borderRadius: 12,
     padding: 10,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#1e1e30',
   },
   messageLayout: {
     flexDirection: 'row',
     gap: 12,
   },
   messageList: {
-    width: 140,
+    width: 148,
     gap: 6,
   },
   messageRow: {
     padding: 10,
     borderRadius: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#0f0f1a',
+    borderWidth: 1,
+    borderColor: '#1e1e30',
   },
   sentBubble: {
     alignSelf: 'flex-end',
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#7c3aed',
     padding: 10,
-    borderRadius: 14,
+    borderRadius: 16,
+    borderBottomRightRadius: 4,
     marginTop: 8,
+    maxWidth: '75%',
+    shadowColor: '#7c3aed',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
   sentBubbleText: {
     color: '#fff',
+    fontSize: 14,
   },
   receivedBubble: {
     alignSelf: 'flex-start',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#1a1a2e',
     padding: 10,
-    borderRadius: 14,
+    borderRadius: 16,
+    borderBottomLeftRadius: 4,
     marginTop: 8,
+    maxWidth: '75%',
+    borderWidth: 1,
+    borderColor: '#2a2a40',
   },
   receivedBubbleText: {
-    color: '#111827',
-  },
-  heroBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#eff6ff',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 10,
-  },
-  heroBadgeText: {
-    color: '#1d4ed8',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  appTitle: {
-    fontSize: 38,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  subtitle: {
-    color: '#6b7280',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  backgroundGlow1: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: '#bfdbfe',
-    top: -70,
-    left: -60,
-    opacity: 0.4,
-  },
-  backgroundGlow2: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: '#dbeafe',
-    bottom: -40,
-    right: -40,
-    opacity: 0.45,
+    color: '#c4b5fd',
+    fontSize: 14,
   },
 });
+
