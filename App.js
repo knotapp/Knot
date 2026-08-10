@@ -51,6 +51,7 @@ export default function App() {
   const [settingsForm, setSettingsForm] = useState({ displayName: '', username: '', password: '', profileImage: '' });
   const [messageDraft, setMessageDraft] = useState('');
   const [selectedChatUserId, setSelectedChatUserId] = useState(null);
+  const [dmSearch, setDmSearch] = useState('');
   const [feedback, setFeedback]         = useState('Sign in to continue.');
 
   // ─── Load all data on mount ───────────────────────────────────────────────
@@ -267,6 +268,25 @@ export default function App() {
   };
 
   // ─── Communities ─────────────────────────────────────────────────────────
+  const [newCommunityForm, setNewCommunityForm] = useState({ name: '', description: '' });
+
+  const handleCreateCommunity = async () => {
+    if (!authUser) return;
+    const name = newCommunityForm.name.trim();
+    const description = newCommunityForm.description.trim();
+    if (!name) { setFeedback('Give your community a name.'); return; }
+    const newCommunity = { id: `community-${uid()}`, name, description, created_at: new Date().toISOString() };
+    const { error } = await supabase.from('communities').insert(newCommunity);
+    if (error) { setFeedback('Could not create community.'); return; }
+    setCommunities((prev) => [...prev, newCommunity]);
+    // auto-join as creator
+    const m = { community_id: newCommunity.id, user_id: authUser.id, created_at: new Date().toISOString() };
+    await supabase.from('community_members').insert(m);
+    setCommunityMembers((prev) => [...prev, m]);
+    setNewCommunityForm({ name: '', description: '' });
+    setFeedback(`Community "${name}" created!`);
+  };
+
   const toggleJoinCommunity = async (communityId) => {
     if (!authUser) return;
     const member = isCommunityMember(communityId);
@@ -558,9 +578,31 @@ export default function App() {
                 <Text style={styles.sectionTitle}>Direct messages</Text>
                 <View style={styles.messageLayout}>
                   <View style={styles.messageList}>
-                    {users.filter((u) => u.id !== authUser.id).map((user) => (
-                      <TouchableOpacity key={user.id} style={[styles.messageRow, selectedChatUserId === user.id && { borderColor: '#5b21b6' }]} onPress={() => setSelectedChatUserId(user.id)}>
-                        <Text style={styles.userNameText}>{user.display_name}</Text>
+                    {/* Search box */}
+                    <TextInput
+                      style={[styles.input, { marginBottom: 8, minHeight: undefined }]}
+                      placeholder="Search username…"
+                      placeholderTextColor="#6b7280"
+                      value={dmSearch}
+                      onChangeText={setDmSearch}
+                    />
+                    {users
+                      .filter((u) => {
+                        if (u.id === authUser.id) return false;
+                        if (!dmSearch.trim()) return true;
+                        return u.username.toLowerCase().includes(dmSearch.trim().toLowerCase()) ||
+                               u.display_name.toLowerCase().includes(dmSearch.trim().toLowerCase());
+                      })
+                      .map((user) => (
+                      <TouchableOpacity
+                        key={user.id}
+                        style={[styles.messageRow, selectedChatUserId === user.id && { borderColor: '#5b21b6' }]}
+                        onPress={() => { setSelectedChatUserId(user.id); setDmSearch(''); }}
+                      >
+                        <View style={styles.inlineRow}>
+                          <Text style={styles.userNameText}>{user.display_name}</Text>
+                          {user.verified ? <VerifiedBadge /> : null}
+                        </View>
                         <Text style={styles.userMetaText}>@{user.username}</Text>
                       </TouchableOpacity>
                     ))}
@@ -585,6 +627,29 @@ export default function App() {
             {viewMode === 'communities' && (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>Communities</Text>
+
+                {/* Create community form */}
+                <View style={styles.composeCard}>
+                  <Text style={styles.composeLabel}>✦ Create a community</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Community name"
+                    placeholderTextColor="#6b7280"
+                    value={newCommunityForm.name}
+                    onChangeText={(v) => setNewCommunityForm((p) => ({ ...p, name: v }))}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Description (optional)"
+                    placeholderTextColor="#6b7280"
+                    value={newCommunityForm.description}
+                    onChangeText={(v) => setNewCommunityForm((p) => ({ ...p, description: v }))}
+                  />
+                  <TouchableOpacity style={styles.primaryButton} onPress={handleCreateCommunity}>
+                    <Text style={styles.primaryButtonText}>Create</Text>
+                  </TouchableOpacity>
+                </View>
+
                 {communities.map((community) => (
                   <View key={community.id} style={styles.postCard}>
                     <View style={styles.inlineRow}>
@@ -747,8 +812,8 @@ export default function App() {
 // ─── VerifiedBadge ────────────────────────────────────────────────────────────
 function VerifiedBadge() {
   return (
-    <View style={styles.badgeChip}>
-      <Text style={styles.badgeChipText}>✓ Verified</Text>
+    <View style={styles.verifiedBadge}>
+      <Text style={styles.verifiedBadgeText}>✓</Text>
     </View>
   );
 }
@@ -821,6 +886,8 @@ const styles = StyleSheet.create({
   inlineRow:        { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badgeChip:        { backgroundColor: '#1e1030', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#5b21b6' },
   badgeChipText:    { color: '#a78bfa', fontWeight: '700', fontSize: 11 },
+  verifiedBadge:    { width: 18, height: 18, borderRadius: 9, backgroundColor: '#1d4ed8', justifyContent: 'center', alignItems: 'center' },
+  verifiedBadgeText:{ color: '#fff', fontWeight: '900', fontSize: 11, lineHeight: 13 },
   commentBox:       { backgroundColor: '#0f0f1a', borderRadius: 12, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#1e1e30' },
   messageLayout:    { flexDirection: 'row', gap: 12 },
   messageList:      { width: 148, gap: 6 },
