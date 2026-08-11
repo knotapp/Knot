@@ -56,16 +56,24 @@ export default function App() {
   const PREMIUM_LINK = 'https://buy.stripe.com/test_14AeVf2sG1Ei8jubIj53O00';
   const [feedback, setFeedback]         = useState('Sign in to continue.');
 
-  // --- Load all data on mount -----------------------------------------------
+  // --- Load data -----------------------------------------------------------
   useEffect(() => {
-    async function loadAll() {
+    async function loadInitial() {
       setLoading(true);
-      const [
-        { data: u }, { data: p }, { data: c }, { data: b },
-        { data: f }, { data: n }, { data: d }, { data: cm }, { data: cmm },
-      ] = await Promise.all([
+      // Load only what's needed to render the auth screen fast
+      const [{ data: u }, { data: p }] = await Promise.all([
         supabase.from('users').select('*'),
-        supabase.from('posts').select('*').order('created_at', { ascending: false }),
+        supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
+      ]);
+      setUsers(u || []);
+      setPosts(p || []);
+      setLoading(false);
+
+      // Load the rest in the background
+      const [
+        { data: c }, { data: b }, { data: f },
+        { data: n }, { data: d }, { data: cm }, { data: cmm },
+      ] = await Promise.all([
         supabase.from('comments').select('*').order('created_at', { ascending: true }),
         supabase.from('bookmarks').select('*'),
         supabase.from('follows').select('*'),
@@ -74,8 +82,6 @@ export default function App() {
         supabase.from('communities').select('*'),
         supabase.from('community_members').select('*'),
       ]);
-      setUsers(u || []);
-      setPosts(p || []);
       setComments(c || []);
       setBookmarks(b || []);
       setFollows(f || []);
@@ -83,9 +89,8 @@ export default function App() {
       setDMs(d || []);
       setCommunities(cm || []);
       setCommunityMembers(cmm || []);
-      setLoading(false);
     }
-    loadAll();
+    loadInitial();
   }, []);
 
   // --- Derived state -------------------------------------------------------
@@ -144,14 +149,27 @@ export default function App() {
   const handleSignIn = async () => {
     const username = authForm.username.trim().toLowerCase();
     const password = authForm.password.trim();
-    const { data, error } = await supabase.from('users').select('*').eq('username', username).eq('password', password).single();
-    if (error || !data) { setFeedback('No matching account. Check username and password.'); return; }
-    if (data.banned)    { setFeedback('This account is banned.'); return; }
-    setAuthUser(data);
-    setSelectedProfileId(data.id);
-    setSelectedChatUserId(users.find((u) => u.id !== data.id)?.id || null);
-    setSettingsForm({ displayName: data.display_name, username: data.username, password: data.password, profileImage: data.profile_image });
-    setFeedback(`Welcome back, ${data.display_name}!`);
+    if (!username || !password) { setFeedback('Enter your username and password.'); return; }
+    setFeedback('Signing in…');
+    try {
+      const { data: rows, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .limit(1);
+      if (error) throw error;
+      const data = rows?.[0];
+      if (!data) { setFeedback('No matching account. Check your username and password.'); return; }
+      if (data.banned) { setFeedback('This account is banned.'); return; }
+      setAuthUser(data);
+      setSelectedProfileId(data.id);
+      setSelectedChatUserId(users.find((u) => u.id !== data.id)?.id || null);
+      setSettingsForm({ displayName: data.display_name, username: data.username, password: data.password, profileImage: data.profile_image || '' });
+      setFeedback(`Welcome back, ${data.display_name}!`);
+    } catch (e) {
+      setFeedback('Sign in failed. Please try again.');
+    }
   };
 
   const handleSignUp = async () => {
@@ -159,16 +177,21 @@ export default function App() {
     const password    = authForm.password.trim();
     const displayName = authForm.displayName.trim() || username;
     if (!username || !password) { setFeedback('Enter a username and password.'); return; }
-    const { data: existing } = await supabase.from('users').select('id').eq('username', username).single();
-    if (existing) { setFeedback('That username is already taken.'); return; }
-    const newUser = { id: `user-${uid()}`, username, password, display_name: displayName, role: 'user', verified: false, banned: false, profile_image: '', bio: 'New to Knot Social.' };
-    const { error } = await supabase.from('users').insert(newUser);
-    if (error) { setFeedback('Sign up failed. Try again.'); return; }
-    setUsers((prev) => [newUser, ...prev]);
-    setAuthUser(newUser);
-    setSelectedProfileId(newUser.id);
-    setSettingsForm({ displayName, username, password, profileImage: '' });
-    setFeedback(`Account created for @${username}.`);
+    setFeedback('Creating account…');
+    try {
+      const { data: rows } = await supabase.from('users').select('id').eq('username', username).limit(1);
+      if (rows?.length > 0) { setFeedback('That username is already taken.'); return; }
+      const newUser = { id: `user-${uid()}`, username, password, display_name: displayName, role: 'user', verified: false, banned: false, profile_image: '', bio: 'New to Knot Social.' };
+      const { error } = await supabase.from('users').insert(newUser);
+      if (error) throw error;
+      setUsers((prev) => [newUser, ...prev]);
+      setAuthUser(newUser);
+      setSelectedProfileId(newUser.id);
+      setSettingsForm({ displayName, username, password, profileImage: '' });
+      setFeedback(`Account created for @${username}.`);
+    } catch (e) {
+      setFeedback('Sign up failed. Please try again.');
+    }
   };
 
   const handleSignOut = () => { setAuthUser(null); setFeedback('Signed out.'); };
