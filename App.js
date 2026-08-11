@@ -1,15 +1,19 @@
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  TouchableOpacity as RNTouchableOpacity,
   View,
 } from 'react-native';
 import { supabase } from './supabase';
+
+const TouchableOpacity = (props) => (
+  <RNTouchableOpacity {...props} delayPressIn={0} activeOpacity={0.7} />
+);
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -25,6 +29,118 @@ function extractHashtags(content = '') {
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
+
+// --- Memoized building blocks ------------------------------------------------
+
+const ComposeCard = memo(function ComposeCard({ onSubmit }) {
+  const [text, setText] = useState('');
+
+  const submit = () => {
+    if (onSubmit(text)) setText('');
+  };
+
+  return (
+    <View style={styles.composeCard}>
+      <Text style={styles.composeLabel}>What's happening?</Text>
+      <TextInput
+        style={styles.postInput}
+        multiline
+        placeholder="Share an update…"
+        placeholderTextColor="#6b7280"
+        value={text}
+        onChangeText={setText}
+      />
+      <TouchableOpacity style={styles.primaryButton} onPress={submit}>
+        <Text style={styles.primaryButtonText}>Publish</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+const FeedPost = memo(function FeedPost({
+  post,
+  comments,
+  users,
+  authUser,
+  isBookmarked,
+  expanded,
+  onToggleBookmark,
+  onAddComment,
+  onViewComments,
+}) {
+  const [draft, setDraft] = useState('');
+
+  const postComments = useMemo(
+    () => comments.filter((c) => c.post_id === post.id),
+    [comments, post]
+  );
+
+  const visibleComments = expanded ? postComments : postComments.slice(0, 2);
+
+  const submit = async () => {
+    const text = draft.trim();
+    if (!text) return;
+    const ok = await onAddComment(post.id, text);
+    if (ok) setDraft('');
+  };
+
+  const author = users.find((u) => u.id === post.user_id);
+
+  return (
+    <View style={styles.postCard}>
+      <View style={styles.postHeader}>
+        <View style={styles.avatarSmall}>
+          {author?.profile_image ? (
+            <Image source={{ uri: author.profile_image }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>{getAvatarLabel(author)}</Text>
+          )}
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={styles.inlineRow}>
+            <Text style={styles.postAuthor}>{author?.display_name || 'Unknown'}</Text>
+            <UserBadges user={author} />
+          </View>
+          <Text style={styles.userMetaText}>@{author?.username || '?'}</Text>
+        </View>
+      </View>
+      <Text style={styles.postText}>{post.content}</Text>
+      <Text style={styles.helperText}>{new Date(post.created_at).toLocaleString()}</Text>
+      <View style={styles.inlineRow}>
+        <TouchableOpacity style={styles.smallButton} onPress={() => onToggleBookmark(post.id)}>
+          <Text style={styles.smallButtonText}>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</Text>
+        </TouchableOpacity>
+        {!expanded ? (
+          <TouchableOpacity style={styles.smallButton} onPress={() => onViewComments()}>
+            <Text style={styles.smallButtonText}>View comments</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      {visibleComments.map((comment) => {
+        const ca = users.find((u) => u.id === comment.user_id);
+        return (
+          <View key={comment.id} style={styles.commentBox}>
+            <View style={styles.inlineRow}>
+              <Text style={styles.userNameText}>{ca?.display_name || '?'}</Text>
+              <UserBadges user={ca} />
+            </View>
+            <Text style={styles.postText}>{comment.text}</Text>
+          </View>
+        );
+      })}
+      <TextInput
+        style={styles.postInput}
+        placeholder="Write a comment"
+        placeholderTextColor="#6b7280"
+        value={draft}
+        onChangeText={setDraft}
+      />
+      <TouchableOpacity style={styles.smallButton} onPress={submit}>
+        <Text style={styles.smallButtonText}>Comment</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
 
 // --- App ---------------------------------------------------------------------
 
@@ -46,12 +162,9 @@ export default function App() {
   const [searchQuery, setSearchQuery]   = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [viewMode, setViewMode]         = useState('feed');
-  const [postText, setPostText]         = useState('');
-  const [commentDrafts, setCommentDrafts] = useState({});
   const [settingsForm, setSettingsForm] = useState({ displayName: '', username: '', password: '', profileImage: '' });
-  const [messageDraft, setMessageDraft] = useState('');
   const [selectedChatUserId, setSelectedChatUserId] = useState(null);
-  const [dmSearch, setDmSearch] = useState('');
+  const [dmSearch, setDmSearch]         = useState('');
 
   const PREMIUM_LINK = 'https://buy.stripe.com/test_14AeVf2sG1Ei8jubIj53O00';
   const [feedback, setFeedback]         = useState('Sign in to continue.');
@@ -191,7 +304,11 @@ export default function App() {
     }
   };
 
-  const handleSignOut = () => { setAuthUser(null); setFeedback('Signed out.'); };
+  const handleSignOut = useCallback(() => {
+    setAuthUser(null);
+    setSelectedChatUserId(null);
+    setFeedback('Signed out.');
+  }, []);
 
   const handleUpdateSettings = async () => {
     if (!authUser) return;
@@ -210,34 +327,35 @@ export default function App() {
   };
 
   // --- Posts ---------------------------------------------------------------
-  const handleCreatePost = async () => {
-    if (!authUser) return;
-    const text = postText.trim();
-    if (!text) { setFeedback('Write something before posting.'); return; }
-    const newPost = { id: `post-${uid()}`, user_id: authUser.id, content: text, created_at: new Date().toISOString() };
-    await supabase.from('posts').insert(newPost);
-    setPosts((prev) => [newPost, ...prev]);
-    setPostText('');
-    setFeedback('Post published.');
-  };
+  const handleCreatePost = useCallback((text) => {
+    if (!authUser) return false;
+    const content = (text || '').trim();
+    if (!content) { setFeedback('Write something before posting.'); return false; }
+    const newPost = { id: `post-${uid()}`, user_id: authUser.id, content, created_at: new Date().toISOString() };
+    supabase.from('posts').insert(newPost).then(() => {
+      setPosts((prev) => [newPost, ...prev]);
+      setFeedback('Post published.');
+    });
+    return true;
+  }, [authUser]);
 
   // --- Comments ------------------------------------------------------------
-  const handleAddComment = async (postId) => {
-    if (!authUser) return;
-    const text = (commentDrafts[postId] || '').trim();
-    if (!text) { setFeedback('Write a comment first.'); return; }
-    const newComment = { id: `comment-${uid()}`, post_id: postId, user_id: authUser.id, text, created_at: new Date().toISOString() };
+  const handleAddComment = useCallback(async (postId, text) => {
+    if (!authUser) return false;
+    const content = (text || '').trim();
+    if (!content) { setFeedback('Write a comment first.'); return false; }
+    const newComment = { id: `comment-${uid()}`, post_id: postId, user_id: authUser.id, text: content, created_at: new Date().toISOString() };
     await supabase.from('comments').insert(newComment);
     setComments((prev) => [...prev, newComment]);
-    setCommentDrafts((prev) => ({ ...prev, [postId]: '' }));
     const note = { id: `note-${uid()}`, user_id: authUser.id, text: 'You commented on a post.', created_at: new Date().toISOString() };
     await supabase.from('notifications').insert(note);
     setNotifications((prev) => [note, ...prev]);
     setFeedback('Comment posted.');
-  };
+    return true;
+  }, [authUser]);
 
   // --- Bookmarks -----------------------------------------------------------
-  const toggleBookmark = async (postId) => {
+  const toggleBookmark = useCallback(async (postId) => {
     if (!authUser) return;
     const exists = bookmarks.some((b) => b.user_id === authUser.id && b.post_id === postId);
     if (exists) {
@@ -249,7 +367,7 @@ export default function App() {
       setBookmarks((prev) => [...prev, b]);
     }
     setFeedback('Bookmark updated.');
-  };
+  }, [authUser, bookmarks]);
 
   // --- Follows -------------------------------------------------------------
   const toggleFollow = async (userId) => {
@@ -272,7 +390,7 @@ export default function App() {
 
   // --- Admin ---------------------------------------------------------------
   const toggleBan = async (userId) => {
-    if (!authUser || authUser.role !== 'admin') return;
+    if (!authUser || (authUser.role !== 'admin' && authUser.role !== 'owner')) return;
     const target = users.find((u) => u.id === userId);
     const banned = !target.banned;
     await supabase.from('users').update({ banned }).eq('id', userId);
@@ -281,7 +399,7 @@ export default function App() {
   };
 
   const toggleVerify = async (userId) => {
-    if (!authUser || authUser.role !== 'admin') return;
+    if (!authUser || (authUser.role !== 'admin' && authUser.role !== 'owner')) return;
     const target = users.find((u) => u.id === userId);
     const verified = !target.verified;
     await supabase.from('users').update({ verified }).eq('id', userId);
@@ -339,6 +457,8 @@ export default function App() {
     setFeedback('Message sent.');
   };
 
+  const [messageDraft, setMessageDraft] = useState('');
+
   const hasTag = (content, term) => {
     const n = (term || '').trim().toLowerCase();
     if (!n) return true;
@@ -350,13 +470,13 @@ export default function App() {
   if (!authUser) {
     return (
       <View style={styles.screen}>
-        <View style={styles.backgroundGlow1} />
-        <View style={styles.backgroundGlow2} />
-        <View style={styles.backgroundGlow3} />
+        <View style={styles.backgroundGlow1} pointerEvents="none" />
+        <View style={styles.backgroundGlow2} pointerEvents="none" />
+        <View style={styles.backgroundGlow3} pointerEvents="none" />
         <StatusBar style="light" />
-        <ScrollView contentContainerStyle={styles.authContainer}>
+        <ScrollView contentContainerStyle={styles.authContainer} keyboardShouldPersistTaps="handled">
           <View style={styles.authCard}>
-            <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>? Live social hub</Text></View>
+            <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ Live social hub</Text></View>
             <Text style={styles.appTitle}>Knot</Text>
             <Text style={styles.subtitle}>Connect, post, and grow your community.</Text>
             <View style={styles.toggleRow}>
@@ -374,7 +494,7 @@ export default function App() {
             <TextInput style={styles.input} placeholder="Username" placeholderTextColor="#6b7280" value={authForm.username} onChangeText={(v) => setAuthForm((p) => ({ ...p, username: v }))} />
             <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#6b7280" secureTextEntry value={authForm.password} onChangeText={(v) => setAuthForm((p) => ({ ...p, password: v }))} />
             <TouchableOpacity style={styles.primaryButton} onPress={authMode === 'signin' ? handleSignIn : handleSignUp}>
-              <Text style={styles.primaryButtonText}>{authMode === 'signin' ? '? Sign in' : '? Create account'}</Text>
+              <Text style={styles.primaryButtonText}>{authMode === 'signin' ? '→ Sign in' : '→ Create account'}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -384,22 +504,22 @@ export default function App() {
 
   // --- Main app ------------------------------------------------------------
   const navItems = [
-    { mode: 'feed',          icon: '�', label: 'Home' },
-    { mode: 'profile',       icon: '?', label: 'Profile' },
-    { mode: 'profiles',      icon: '?', label: 'Profiles & follows' },
-    { mode: 'notifications', icon: '?', label: 'Notifications' },
-    { mode: 'comments',      icon: '?', label: 'Comments & replies' },
-    { mode: 'hashtags',      icon: '?', label: 'Search & hashtags' },
-    { mode: 'bookmarks',     icon: '?', label: 'Bookmarks' },
-    { mode: 'messages',      icon: '?', label: 'Direct messages' },
-    { mode: 'communities',   icon: '?', label: 'Communities' },
-    { mode: 'premium',       icon: '?', label: 'Premium' },
+    { mode: 'feed',          icon: '⌂', label: 'Home' },
+    { mode: 'profile',       icon: '◉', label: 'Profile' },
+    { mode: 'profiles',      icon: '⊕', label: 'Profiles & follows' },
+    { mode: 'notifications', icon: '◎', label: 'Notifications' },
+    { mode: 'comments',      icon: '◈', label: 'Comments & replies' },
+    { mode: 'hashtags',      icon: '◇', label: 'Search & hashtags' },
+    { mode: 'bookmarks',     icon: '◆', label: 'Bookmarks' },
+    { mode: 'messages',      icon: '✉', label: 'Direct messages' },
+    { mode: 'communities',   icon: '⬡', label: 'Communities' },
+    { mode: 'premium',       icon: '★', label: 'Premium' },
   ];
 
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.appShell}>
 
           {/* -- Sidebar -- */}
@@ -413,7 +533,7 @@ export default function App() {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={styles.primaryButton} onPress={() => setViewMode('feed')}>
-              <Text style={styles.primaryButtonText}>? Post</Text>
+              <Text style={styles.primaryButtonText}>✦ Post</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryButton} onPress={handleSignOut}>
               <Text style={styles.secondaryButtonText}>Sign out</Text>
@@ -460,7 +580,7 @@ export default function App() {
                 </View>
                 <View style={styles.inlineRow}>
                   <Text style={styles.helperText}>
-                    {followerCount(selectedProfile.id)} followers � {followingCount(selectedProfile.id)} following � Role: {selectedProfile.role}
+                    {followerCount(selectedProfile.id)} followers · {followingCount(selectedProfile.id)} following · Role: {selectedProfile.role}
                   </Text>
                   {selectedProfile.id !== authUser.id && (
                     <TouchableOpacity style={styles.smallButton} onPress={() => toggleFollow(selectedProfile.id)}>
@@ -496,7 +616,7 @@ export default function App() {
                         <UserBadges user={user} />
                       </View>
                       <Text style={styles.userMetaText}>@{user.username}</Text>
-                      <Text style={styles.helperText}>{followerCount(user.id)} followers � {followingCount(user.id)} following</Text>
+                      <Text style={styles.helperText}>{followerCount(user.id)} followers · {followingCount(user.id)} following</Text>
                     </View>
                     {user.id !== authUser.id && (
                       <TouchableOpacity style={styles.smallButton} onPress={() => toggleFollow(user.id)}>
@@ -528,31 +648,20 @@ export default function App() {
             {viewMode === 'comments' && (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>Comments & replies</Text>
-                {orderedPosts.map((post) => {
-                  const postComments = comments.filter((c) => c.post_id === post.id);
-                  return (
-                    <View key={post.id} style={styles.postCard}>
-                      <Text style={styles.postText}>{post.content}</Text>
-                      <Text style={styles.helperText}>{new Date(post.created_at).toLocaleString()}</Text>
-                      {postComments.map((comment) => {
-                        const author = users.find((u) => u.id === comment.user_id);
-                        return (
-                          <View key={comment.id} style={styles.commentBox}>
-                            <View style={styles.inlineRow}>
-                              <Text style={styles.userNameText}>{author?.display_name || '?'}</Text>
-                              <UserBadges user={author} />
-                            </View>
-                            <Text style={styles.postText}>{comment.text}</Text>
-                          </View>
-                        );
-                      })}
-                      <TextInput style={styles.postInput} placeholder="Reply�" placeholderTextColor="#6b7280" value={commentDrafts[post.id] || ''} onChangeText={(v) => setCommentDrafts((p) => ({ ...p, [post.id]: v }))} />
-                      <TouchableOpacity style={styles.smallButton} onPress={() => handleAddComment(post.id)}>
-                        <Text style={styles.smallButtonText}>Comment</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
+                {orderedPosts.map((post) => (
+                  <FeedPost
+                    key={post.id}
+                    post={post}
+                    comments={comments}
+                    users={users}
+                    authUser={authUser}
+                    isBookmarked={false}
+                    expanded
+                    onToggleBookmark={toggleBookmark}
+                    onAddComment={handleAddComment}
+                    onViewComments={() => setViewMode('comments')}
+                  />
+                ))}
               </View>
             )}
 
@@ -595,7 +704,7 @@ export default function App() {
                     {/* Search box */}
                     <TextInput
                       style={[styles.input, { marginBottom: 8, minHeight: undefined }]}
-                      placeholder="Search username�"
+                      placeholder="Search username…"
                       placeholderTextColor="#6b7280"
                       value={dmSearch}
                       onChangeText={setDmSearch}
@@ -622,7 +731,7 @@ export default function App() {
                     ))}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.helperText}>Chat with @{selectedChatUser?.username || '�'}</Text>
+                    <Text style={styles.helperText}>Chat with @{selectedChatUser?.username || '—'}</Text>
                     {conversationMessages.map((msg) => (
                       <View key={msg.id} style={msg.sender_id === authUser.id ? styles.sentBubble : styles.receivedBubble}>
                         <Text style={msg.sender_id === authUser.id ? styles.sentBubbleText : styles.receivedBubbleText}>{msg.text}</Text>
@@ -644,7 +753,7 @@ export default function App() {
 
                 {/* Create community form */}
                 <View style={styles.composeCard}>
-                  <Text style={styles.composeLabel}>? Create a community</Text>
+                  <Text style={styles.composeLabel}>✦ Create a community</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Community name"
@@ -685,36 +794,36 @@ export default function App() {
                 {authUser.premium ? (
                   <>
                     <View style={styles.premiumActiveHeader}>
-                      <Text style={styles.premiumActiveIcon}>?</Text>
+                      <Text style={styles.premiumActiveIcon}>✦</Text>
                       <Text style={styles.premiumActiveTitle}>You're Premium</Text>
                     </View>
                     <Text style={styles.premiumDesc}>Your gold badge is active on your profile and all your posts. Thank you for supporting Knot!</Text>
                     <View style={styles.premiumPerk}>
-                      <Text style={styles.premiumPerkText}>?  Gold badge next to your name</Text>
+                      <Text style={styles.premiumPerkText}>✦  Gold badge next to your name</Text>
                     </View>
                     <View style={styles.premiumPerk}>
-                      <Text style={styles.premiumPerkText}>?  Premium supporter status</Text>
+                      <Text style={styles.premiumPerkText}>✦  Premium supporter status</Text>
                     </View>
                     <View style={styles.premiumPerk}>
-                      <Text style={styles.premiumPerkText}>?  Priority community features</Text>
+                      <Text style={styles.premiumPerkText}>✦  Priority community features</Text>
                     </View>
                   </>
                 ) : (
                   <>
                     <View style={styles.premiumHeader}>
-                      <Text style={styles.premiumIcon}>?</Text>
+                      <Text style={styles.premiumIcon}>★</Text>
                       <Text style={styles.premiumTitle}>Knot Premium</Text>
                       <Text style={styles.premiumPrice}>$4.99 / month</Text>
                     </View>
                     <Text style={styles.premiumDesc}>Support Knot and stand out with a gold badge next to your name everywhere on the platform.</Text>
                     <View style={styles.premiumPerk}>
-                      <Text style={styles.premiumPerkText}>?  Gold badge next to your name</Text>
+                      <Text style={styles.premiumPerkText}>✦  Gold badge next to your name</Text>
                     </View>
                     <View style={styles.premiumPerk}>
-                      <Text style={styles.premiumPerkText}>?  Premium supporter status</Text>
+                      <Text style={styles.premiumPerkText}>✦  Premium supporter status</Text>
                     </View>
                     <View style={styles.premiumPerk}>
-                      <Text style={styles.premiumPerkText}>?  Priority community features</Text>
+                      <Text style={styles.premiumPerkText}>✦  Priority community features</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.premiumButton}
@@ -724,7 +833,7 @@ export default function App() {
                         }
                       }}
                     >
-                      <Text style={styles.premiumButtonText}>? Subscribe for $4.99/mo</Text>
+                      <Text style={styles.premiumButtonText}>★ Subscribe for $4.99/mo</Text>
                     </TouchableOpacity>
                     <Text style={styles.helperText}>After payment your gold badge will activate automatically. Billed monthly, cancel anytime.</Text>
                   </>
@@ -737,67 +846,28 @@ export default function App() {
               <>
                 <View style={styles.feedHeader}>
                   <Text style={styles.feedTitle}>Home</Text>
-                  <Text style={styles.feedSubtitle}>Your live social feed � what's happening right now.</Text>
+                  <Text style={styles.feedSubtitle}>Your live social feed — what's happening right now.</Text>
                 </View>
 
                 {feedback ? <View style={styles.notice}><Text style={styles.noticeText}>{feedback}</Text></View> : null}
 
-                <View style={styles.composeCard}>
-                  <Text style={styles.composeLabel}>What's happening?</Text>
-                  <TextInput style={styles.postInput} multiline placeholder="Share an update�" placeholderTextColor="#6b7280" value={postText} onChangeText={setPostText} />
-                  <TouchableOpacity style={styles.primaryButton} onPress={handleCreatePost}>
-                    <Text style={styles.primaryButtonText}>Publish</Text>
-                  </TouchableOpacity>
-                </View>
+                <ComposeCard onSubmit={handleCreatePost} />
 
                 {orderedPosts.map((post) => {
-                  const author      = users.find((u) => u.id === post.user_id);
                   const isBookmarked = bookmarks.some((b) => b.user_id === authUser.id && b.post_id === post.id);
-                  const postComments = comments.filter((c) => c.post_id === post.id);
                   return (
-                    <View key={post.id} style={styles.postCard}>
-                      <View style={styles.postHeader}>
-                        <View style={styles.avatarSmall}>
-                          {author?.profile_image
-                            ? <Image source={{ uri: author.profile_image }} style={styles.avatarImage} />
-                            : <Text style={styles.avatarText}>{getAvatarLabel(author)}</Text>
-                          }
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <View style={styles.inlineRow}>
-                            <Text style={styles.postAuthor}>{author?.display_name || 'Unknown'}</Text>
-                            <UserBadges user={author} />
-                          </View>
-                          <Text style={styles.userMetaText}>@{author?.username || '?'}</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.postText}>{post.content}</Text>
-                      <Text style={styles.helperText}>{new Date(post.created_at).toLocaleString()}</Text>
-                      <View style={styles.inlineRow}>
-                        <TouchableOpacity style={styles.smallButton} onPress={() => toggleBookmark(post.id)}>
-                          <Text style={styles.smallButtonText}>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.smallButton} onPress={() => setViewMode('comments')}>
-                          <Text style={styles.smallButtonText}>View comments</Text>
-                        </TouchableOpacity>
-                      </View>
-                      {postComments.slice(0, 2).map((comment) => {
-                        const ca = users.find((u) => u.id === comment.user_id);
-                        return (
-                          <View key={comment.id} style={styles.commentBox}>
-                            <View style={styles.inlineRow}>
-                              <Text style={styles.userNameText}>{ca?.display_name || '?'}</Text>
-                              <UserBadges user={ca} />
-                            </View>
-                            <Text style={styles.postText}>{comment.text}</Text>
-                          </View>
-                        );
-                      })}
-                      <TextInput style={styles.postInput} placeholder="Write a comment" placeholderTextColor="#6b7280" value={commentDrafts[post.id] || ''} onChangeText={(v) => setCommentDrafts((p) => ({ ...p, [post.id]: v }))} />
-                      <TouchableOpacity style={styles.smallButton} onPress={() => handleAddComment(post.id)}>
-                        <Text style={styles.smallButtonText}>Comment</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <FeedPost
+                      key={post.id}
+                      post={post}
+                      comments={comments}
+                      users={users}
+                      authUser={authUser}
+                      isBookmarked={isBookmarked}
+                      expanded={false}
+                      onToggleBookmark={toggleBookmark}
+                      onAddComment={handleAddComment}
+                      onViewComments={() => setViewMode('comments')}
+                    />
                   );
                 })}
               </>
@@ -839,7 +909,7 @@ export default function App() {
             </View>
 
             <TouchableOpacity style={styles.secondaryButton} onPress={() => setViewMode('settings')}>
-              <Text style={styles.secondaryButtonText}>? Settings</Text>
+              <Text style={styles.secondaryButtonText}>⚙ Settings</Text>
             </TouchableOpacity>
 
             {(authUser.role === 'admin' || authUser.role === 'owner') && (
@@ -880,7 +950,7 @@ export default function App() {
 function VerifiedBadge() {
   return (
     <View style={styles.verifiedBadge}>
-      <Text style={styles.verifiedBadgeText}>?</Text>
+      <Text style={styles.verifiedBadgeText}>✓</Text>
     </View>
   );
 }
@@ -888,7 +958,7 @@ function VerifiedBadge() {
 function GoldBadge() {
   return (
     <View style={styles.goldBadge}>
-      <Text style={styles.goldBadgeText}>?</Text>
+      <Text style={styles.goldBadgeText}>★</Text>
     </View>
   );
 }
@@ -896,7 +966,7 @@ function GoldBadge() {
 function UserBadges({ user }) {
   return (
     <>
-      <UserBadges user={user} />
+      {user?.verified ? <VerifiedBadge /> : null}
       {user?.premium ? <GoldBadge /> : null}
     </>
   );
