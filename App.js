@@ -57,41 +57,35 @@ export default function App() {
   const [feedback, setFeedback]         = useState('Sign in to continue.');
 
   // --- Load data -----------------------------------------------------------
-  useEffect(() => {
-    async function loadInitial() {
-      setLoading(true);
-      // Load only what's needed to render the auth screen fast
-      const [{ data: u }, { data: p }] = await Promise.all([
-        supabase.from('users').select('*'),
-        supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
-      ]);
-      setUsers(u || []);
-      setPosts(p || []);
-      setLoading(false);
+  // Don't load anything on mount — show auth screen instantly.
+  // Data loads only after sign in.
+  useEffect(() => { setLoading(false); }, []);
 
-      // Load the rest in the background
-      const [
-        { data: c }, { data: b }, { data: f },
-        { data: n }, { data: d }, { data: cm }, { data: cmm },
-      ] = await Promise.all([
-        supabase.from('comments').select('*').order('created_at', { ascending: true }),
-        supabase.from('bookmarks').select('*'),
-        supabase.from('follows').select('*'),
-        supabase.from('notifications').select('*').order('created_at', { ascending: false }),
-        supabase.from('direct_messages').select('*').order('created_at', { ascending: true }),
-        supabase.from('communities').select('*'),
-        supabase.from('community_members').select('*'),
-      ]);
-      setComments(c || []);
-      setBookmarks(b || []);
-      setFollows(f || []);
-      setNotifications(n || []);
-      setDMs(d || []);
-      setCommunities(cm || []);
-      setCommunityMembers(cmm || []);
-    }
-    loadInitial();
-  }, []);
+  const loadAllData = async () => {
+    const [
+      { data: u }, { data: p }, { data: c }, { data: b },
+      { data: f }, { data: n }, { data: d }, { data: cm }, { data: cmm },
+    ] = await Promise.all([
+      supabase.from('users').select('*'),
+      supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
+      supabase.from('comments').select('*').order('created_at', { ascending: true }),
+      supabase.from('bookmarks').select('*'),
+      supabase.from('follows').select('*'),
+      supabase.from('notifications').select('*').order('created_at', { ascending: false }),
+      supabase.from('direct_messages').select('*').order('created_at', { ascending: true }),
+      supabase.from('communities').select('*'),
+      supabase.from('community_members').select('*'),
+    ]);
+    setUsers(u || []);
+    setPosts(p || []);
+    setComments(c || []);
+    setBookmarks(b || []);
+    setFollows(f || []);
+    setNotifications(n || []);
+    setDMs(d || []);
+    setCommunities(cm || []);
+    setCommunityMembers(cmm || []);
+  };
 
   // --- Derived state -------------------------------------------------------
   const selectedProfile = useMemo(() => users.find((u) => u.id === selectedProfileId) || authUser, [users, selectedProfileId, authUser]);
@@ -164,9 +158,12 @@ export default function App() {
       if (data.banned) { setFeedback('This account is banned.'); return; }
       setAuthUser(data);
       setSelectedProfileId(data.id);
-      setSelectedChatUserId(users.find((u) => u.id !== data.id)?.id || null);
       setSettingsForm({ displayName: data.display_name, username: data.username, password: data.password, profileImage: data.profile_image || '' });
       setFeedback(`Welcome back, ${data.display_name}!`);
+      // Load all app data now in background
+      loadAllData().then(() => {
+        setSelectedChatUserId((prev) => prev || null);
+      });
     } catch (e) {
       setFeedback('Sign in failed. Please try again.');
     }
@@ -348,15 +345,6 @@ export default function App() {
     const tags = extractHashtags(content);
     return tags.includes(n.startsWith('#') ? n : `#${n}`) || content.toLowerCase().includes(n);
   };
-
-  // --- Loading screen ------------------------------------------------------
-  if (loading) {
-    return (
-      <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: '#a78bfa', fontSize: 18, fontWeight: '700' }}>Loading�</Text>
-      </View>
-    );
-  }
 
   // --- Auth screen ---------------------------------------------------------
   if (!authUser) {
