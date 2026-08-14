@@ -43,17 +43,17 @@ const ComposeCard = memo(function ComposeCard({ onSubmit }) {
 
   return (
     <View style={styles.composeCard}>
-      <Text style={styles.composeLabel}>What's happening?</Text>
+      <Text style={styles.composeLabel}>what's on your mind?</Text>
       <TextInput
         style={styles.postInput}
         multiline
-        placeholder="Share an update…"
-        placeholderTextColor="#6b7280"
+        placeholder="drop something..."
+        placeholderTextColor="#4b5563"
         value={text}
         onChangeText={setText}
       />
       <TouchableOpacity style={styles.primaryButton} onPress={submit}>
-        <Text style={styles.primaryButtonText}>Publish</Text>
+        <Text style={styles.primaryButtonText}>Post it</Text>
       </TouchableOpacity>
     </View>
   );
@@ -512,9 +512,9 @@ export default function App() {
         <StatusBar style="light" />
         <ScrollView contentContainerStyle={styles.authContainer} keyboardShouldPersistTaps="handled">
           <View style={styles.authCard}>
-            <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ Live social hub</Text></View>
+            <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>KNOT SOCIAL</Text></View>
             <Text style={styles.appTitle}>Knot</Text>
-            <Text style={styles.subtitle}>Connect, post, and grow your community.</Text>
+            <Text style={styles.subtitle}>Where your people are.</Text>
             <View style={styles.toggleRow}>
               <TouchableOpacity style={[styles.toggleButton, authMode === 'signin' && styles.toggleButtonActive]} onPress={() => setAuthMode('signin')}>
                 <Text style={[styles.toggleText, authMode === 'signin' && styles.toggleTextActive]}>Sign in</Text>
@@ -542,12 +542,12 @@ export default function App() {
   const navItems = [
     { mode: 'feed',          icon: '⌂', label: 'Home' },
     { mode: 'profile',       icon: '◉', label: 'Profile' },
-    { mode: 'profiles',      icon: '⊕', label: 'Profiles & follows' },
+    { mode: 'profiles',      icon: '⊕', label: 'People' },
     { mode: 'notifications', icon: '◎', label: 'Notifications' },
-    { mode: 'comments',      icon: '◈', label: 'Comments & replies' },
-    { mode: 'hashtags',      icon: '◇', label: 'Search & hashtags' },
-    { mode: 'bookmarks',     icon: '◆', label: 'Bookmarks' },
-    { mode: 'messages',      icon: '✉', label: 'Direct messages' },
+    { mode: 'comments',      icon: '◈', label: 'Replies' },
+    { mode: 'hashtags',      icon: '◇', label: 'Explore' },
+    { mode: 'bookmarks',     icon: '◆', label: 'Saved' },
+    { mode: 'messages',      icon: '✉', label: 'Messages' },
     { mode: 'communities',   icon: '⬡', label: 'Communities' },
     { mode: 'premium',       icon: '★', label: 'Premium' },
   ];
@@ -569,7 +569,7 @@ export default function App() {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={styles.primaryButton} onPress={() => setViewMode('feed')}>
-              <Text style={styles.primaryButtonText}>✦ Post</Text>
+              <Text style={styles.primaryButtonText}>+ New Post</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryButton} onPress={handleSignOut}>
               <Text style={styles.secondaryButtonText}>Sign out</Text>
@@ -923,7 +923,7 @@ export default function App() {
               <>
                 <View style={styles.feedHeader}>
                   <Text style={styles.feedTitle}>Home</Text>
-                  <Text style={styles.feedSubtitle}>Your live social hub — what's happening right now.</Text>
+                  <Text style={styles.feedSubtitle}>What's going on right now.</Text>
                 </View>
 
                 {/* Castyr promo banner */}
@@ -933,13 +933,13 @@ export default function App() {
                   activeOpacity={0.85}
                 >
                   <View style={styles.castyrBannerInner}>
-                    <View>
-                      <Text style={styles.castyrBannerLabel}>✦ Sponsored</Text>
-                      <Text style={styles.castyrBannerTitle}>🎙 Castyr.live</Text>
-                      <Text style={styles.castyrBannerDesc}>Record, host, and share your podcast in minutes. Try Castyr free.</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.castyrBannerLabel}>PARTNER</Text>
+                      <Text style={styles.castyrBannerTitle}>Castyr.live</Text>
+                      <Text style={styles.castyrBannerDesc}>The next gen live streaming platform. Go live, grow your audience, and own your stream.</Text>
                     </View>
                     <View style={styles.castyrBannerButton}>
-                      <Text style={styles.castyrBannerButtonText}>Visit →</Text>
+                      <Text style={styles.castyrBannerButtonText}>Go live →</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -1009,11 +1009,11 @@ export default function App() {
               onPress={() => Linking.openURL('https://castyr.live')}
               activeOpacity={0.85}
             >
-              <Text style={styles.castyrSideLabel}>✦ Sponsored</Text>
-              <Text style={styles.castyrSideTitle}>🎙 Castyr.live</Text>
-              <Text style={styles.castyrSideDesc}>Your podcast, live in minutes. Record, host & share for free.</Text>
+              <Text style={styles.castyrSideLabel}>PARTNER</Text>
+              <Text style={styles.castyrSideTitle}>Castyr.live</Text>
+              <Text style={styles.castyrSideDesc}>The next gen live streaming platform. Go live and grow your audience.</Text>
               <View style={styles.castyrSideButton}>
-                <Text style={styles.castyrSideButtonText}>Try Castyr free →</Text>
+                <Text style={styles.castyrSideButtonText}>Try it free →</Text>
               </View>
             </TouchableOpacity>
 
@@ -1083,125 +1083,158 @@ function UserBadges({ user }) {
 
 // --- Styles -------------------------------------------------------------------
 const styles = StyleSheet.create({
-  screen:           { flex: 1, backgroundColor: '#0d0d14' },
-  authContainer:    { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#0d0d14' },
-  content:          { padding: 16, backgroundColor: '#0d0d14' },
-  appShell:         { flexDirection: 'row', maxWidth: 1300, alignSelf: 'center', width: '100%', gap: 16 },
-  authCard:         { backgroundColor: '#13131f', borderRadius: 28, padding: 32, width: '100%', maxWidth: 420, borderWidth: 1, borderColor: '#2a2a40', shadowColor: '#7c3aed', shadowOpacity: 0.18, shadowRadius: 40, shadowOffset: { width: 0, height: 16 }, elevation: 10 },
-  appTitle:         { fontSize: 44, fontWeight: '800', color: '#f0e6ff', letterSpacing: -1.5, marginBottom: 6 },
-  subtitle:         { color: '#7c7c9a', fontSize: 14, marginBottom: 22 },
-  heroBadge:        { alignSelf: 'flex-start', backgroundColor: '#1e1030', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 14, borderWidth: 1, borderColor: '#5b21b6' },
-  heroBadgeText:    { color: '#a78bfa', fontWeight: '700', fontSize: 11, letterSpacing: 0.5 },
-  backgroundGlow1:  { position: 'absolute', width: 400, height: 400, borderRadius: 200, backgroundColor: '#7c3aed', top: -140, left: -100, opacity: 0.12 },
-  backgroundGlow2:  { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: '#2563eb', bottom: -80, right: -60, opacity: 0.1 },
-  backgroundGlow3:  { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: '#ec4899', top: '40%', right: -40, opacity: 0.06 },
-  sidebar:          { width: 230, backgroundColor: '#13131f', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#1e1e30', alignSelf: 'flex-start', minHeight: 580 },
-  brand:            { fontSize: 28, fontWeight: '900', color: '#c4b5fd', marginBottom: 22, letterSpacing: -1 },
-  navItem:          { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 4 },
-  navItemActive:    { backgroundColor: '#1e1030', borderWidth: 1, borderColor: '#5b21b6' },
-  navIcon:          { fontSize: 15, color: '#55556b', width: 18, textAlign: 'center' },
-  navIconActive:    { color: '#a78bfa' },
-  navText:          { color: '#6b6b82', fontWeight: '600', fontSize: 13 },
-  navTextActive:    { color: '#c4b5fd', fontWeight: '700' },
-  feedColumn:       { flex: 1, minWidth: 320, gap: 12 },
-  rightColumn:      { width: 280, gap: 12 },
-  card:             { backgroundColor: '#13131f', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#1e1e30' },
-  feedHeader:       { backgroundColor: '#13131f', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#1e1e30' },
-  feedTitle:        { fontSize: 22, fontWeight: '800', color: '#e8e0ff', letterSpacing: -0.5 },
-  feedSubtitle:     { color: '#55556b', marginTop: 4, fontSize: 13 },
-  composeCard:      { backgroundColor: '#13131f', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#2a1f4a' },
-  composeLabel:     { fontSize: 15, fontWeight: '700', color: '#c4b5fd', marginBottom: 10 },
-  sectionTitle:     { fontSize: 15, fontWeight: '800', color: '#e8e0ff', marginBottom: 12, letterSpacing: -0.3 },
-  postCard:         { backgroundColor: '#13131f', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#1e1e30', marginTop: 10 },
-  postHeader:       { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  postAuthor:       { fontWeight: '700', color: '#e8e0ff', fontSize: 14 },
-  postText:         { color: '#b0b0c8', lineHeight: 22, fontSize: 14 },
-  input:            { borderWidth: 1, borderColor: '#2a2a40', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 10, backgroundColor: '#0d0d14', color: '#e8e0ff', fontSize: 14 },
-  postInput:        { borderWidth: 1, borderColor: '#2a2a40', borderRadius: 12, padding: 14, minHeight: 90, backgroundColor: '#0d0d14', color: '#e8e0ff', marginBottom: 10, fontSize: 14 },
-  primaryButton:    { backgroundColor: '#7c3aed', borderRadius: 999, paddingVertical: 13, alignItems: 'center', marginTop: 6, shadowColor: '#7c3aed', shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
-  primaryButtonText:{ color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
-  secondaryButton:  { backgroundColor: 'transparent', borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, marginTop: 4, borderWidth: 1, borderColor: '#2a2a40', alignItems: 'center' },
-  secondaryButtonText: { color: '#7c7c9a', fontWeight: '700', fontSize: 13 },
-  smallButton:      { backgroundColor: '#1a1030', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, marginTop: 4, borderWidth: 1, borderColor: '#3b1d8a' },
-  smallButtonText:  { color: '#a78bfa', fontWeight: '700', fontSize: 12 },
-  toggleRow:        { flexDirection: 'row', gap: 6, marginBottom: 14, backgroundColor: '#0d0d14', borderRadius: 999, padding: 4, borderWidth: 1, borderColor: '#2a2a40' },
-  toggleButton:     { flex: 1, borderRadius: 999, paddingVertical: 9, alignItems: 'center' },
-  toggleButtonActive: { backgroundColor: '#7c3aed', shadowColor: '#7c3aed', shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  toggleText:       { color: '#55556b', fontWeight: '600', fontSize: 13 },
-  toggleTextActive: { color: '#fff', fontWeight: '800' },
-  notice:           { backgroundColor: '#1a0f2e', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#4c1d95' },
-  noticeText:       { color: '#a78bfa', fontWeight: '600', fontSize: 13 },
-  avatarSmall:      { width: 42, height: 42, borderRadius: 21, backgroundColor: '#1e1030', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 1.5, borderColor: '#5b21b6' },
-  avatarLarge:      { width: 64, height: 64, borderRadius: 32, backgroundColor: '#1e1030', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#7c3aed' },
+  // Base
+  screen:           { flex: 1, backgroundColor: '#080810' },
+  authContainer:    { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#080810' },
+  content:          { padding: 16, backgroundColor: '#080810' },
+  appShell:         { flexDirection: 'row', maxWidth: 1280, alignSelf: 'center', width: '100%', gap: 14 },
+
+  // Auth
+  authCard:         { backgroundColor: '#0f0f1a', borderRadius: 20, padding: 36, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: '#1c1c2e' },
+  appTitle:         { fontSize: 48, fontWeight: '900', color: '#ffffff', letterSpacing: -2, marginBottom: 4 },
+  subtitle:         { color: '#4b4b6b', fontSize: 14, marginBottom: 28, letterSpacing: 0.1 },
+  heroBadge:        { alignSelf: 'flex-start', backgroundColor: '#13132a', borderRadius: 4, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 18, borderWidth: 1, borderColor: '#2a2a50' },
+  heroBadgeText:    { color: '#6060a0', fontWeight: '700', fontSize: 10, letterSpacing: 1.5 },
+  backgroundGlow1:  { position: 'absolute', width: 500, height: 500, borderRadius: 250, backgroundColor: '#4f46e5', top: -200, left: -150, opacity: 0.06 },
+  backgroundGlow2:  { position: 'absolute', width: 400, height: 400, borderRadius: 200, backgroundColor: '#7c3aed', bottom: -100, right: -100, opacity: 0.05 },
+  backgroundGlow3:  { position: 'absolute', width: 250, height: 250, borderRadius: 125, backgroundColor: '#ec4899', top: '35%', right: -60, opacity: 0.04 },
+
+  // Sidebar
+  sidebar:          { width: 220, backgroundColor: '#0f0f1a', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#141428', alignSelf: 'flex-start', minHeight: 600 },
+  brand:            { fontSize: 24, fontWeight: '900', color: '#fff', marginBottom: 24, letterSpacing: -1 },
+  navItem:          { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 11, marginBottom: 2 },
+  navItemActive:    { backgroundColor: '#16162a' },
+  navIcon:          { fontSize: 14, color: '#33334d', width: 18, textAlign: 'center' },
+  navIconActive:    { color: '#fff' },
+  navText:          { color: '#3d3d5c', fontWeight: '600', fontSize: 13 },
+  navTextActive:    { color: '#fff', fontWeight: '700' },
+
+  // Layout
+  feedColumn:       { flex: 1, minWidth: 320, gap: 10 },
+  rightColumn:      { width: 270, gap: 10 },
+
+  // Cards
+  card:             { backgroundColor: '#0f0f1a', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#141428' },
+  feedHeader:       { backgroundColor: '#0f0f1a', borderRadius: 16, padding: 16, borderBottomWidth: 1, borderColor: '#141428', borderWidth: 1 },
+  feedTitle:        { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  feedSubtitle:     { color: '#33334d', marginTop: 3, fontSize: 12 },
+  composeCard:      { backgroundColor: '#0f0f1a', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#1a1a2e' },
+  composeLabel:     { fontSize: 13, fontWeight: '600', color: '#404060', marginBottom: 10, letterSpacing: 0.2 },
+  sectionTitle:     { fontSize: 14, fontWeight: '800', color: '#fff', marginBottom: 14, letterSpacing: 0.5, textTransform: 'uppercase' },
+
+  // Posts
+  postCard:         { backgroundColor: '#0f0f1a', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#141428', marginTop: 8 },
+  postHeader:       { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  postAuthor:       { fontWeight: '700', color: '#fff', fontSize: 14 },
+  postText:         { color: '#8080a8', lineHeight: 22, fontSize: 14 },
+
+  // Inputs
+  input:            { borderWidth: 1, borderColor: '#1c1c30', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10, backgroundColor: '#080810', color: '#fff', fontSize: 14 },
+  postInput:        { borderWidth: 1, borderColor: '#1c1c30', borderRadius: 10, padding: 14, minHeight: 86, backgroundColor: '#080810', color: '#fff', marginBottom: 10, fontSize: 14 },
+
+  // Buttons
+  primaryButton:    { backgroundColor: '#5b4fff', borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 6 },
+  primaryButtonText:{ color: '#fff', fontWeight: '700', fontSize: 14, letterSpacing: 0.1 },
+  secondaryButton:  { backgroundColor: 'transparent', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginTop: 4, borderWidth: 1, borderColor: '#1c1c30', alignItems: 'center' },
+  secondaryButtonText: { color: '#404060', fontWeight: '600', fontSize: 13 },
+  smallButton:      { backgroundColor: '#13132a', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, marginTop: 4, borderWidth: 1, borderColor: '#202040' },
+  smallButtonText:  { color: '#8080c0', fontWeight: '600', fontSize: 12 },
+
+  // Auth toggle
+  toggleRow:        { flexDirection: 'row', gap: 4, marginBottom: 18, backgroundColor: '#080810', borderRadius: 10, padding: 3, borderWidth: 1, borderColor: '#1c1c30' },
+  toggleButton:     { flex: 1, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  toggleButtonActive: { backgroundColor: '#5b4fff' },
+  toggleText:       { color: '#33334d', fontWeight: '600', fontSize: 13 },
+  toggleTextActive: { color: '#fff', fontWeight: '700' },
+
+  // Notices
+  notice:           { backgroundColor: '#0d0d20', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#1e1e40' },
+  noticeText:       { color: '#7070b0', fontWeight: '600', fontSize: 13 },
+
+  // Avatars
+  avatarSmall:      { width: 40, height: 40, borderRadius: 20, backgroundColor: '#13132a', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#202040' },
+  avatarLarge:      { width: 68, height: 68, borderRadius: 34, backgroundColor: '#13132a', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#5b4fff' },
   avatarImage:      { width: '100%', height: '100%' },
-  avatarText:       { fontWeight: '800', color: '#a78bfa', fontSize: 15 },
+  avatarText:       { fontWeight: '800', color: '#8080c0', fontSize: 14 },
+
+  // User info
   userRow:          { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  userNameText:     { fontWeight: '700', color: '#e8e0ff', fontSize: 13 },
-  userMetaText:     { color: '#55556b', fontSize: 12 },
-  helperText:       { color: '#55556b', fontSize: 12, marginTop: 4 },
+  userNameText:     { fontWeight: '700', color: '#fff', fontSize: 13 },
+  userMetaText:     { color: '#33334d', fontSize: 12 },
+  helperText:       { color: '#33334d', fontSize: 12, marginTop: 4 },
+
+  // Profile
   profileHeader:    { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 },
-  profileName:      { fontSize: 18, fontWeight: '800', color: '#e8e0ff' },
-  profileBio:       { color: '#7c7c9a', marginTop: 4, fontSize: 13 },
-  bannedText:       { color: '#f87171', fontWeight: '700', marginTop: 6, fontSize: 12 },
-  listItem:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#1a1a28' },
-  adminRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#1a1a28' },
+  profileName:      { fontSize: 18, fontWeight: '800', color: '#fff' },
+  profileBio:       { color: '#4b4b6b', marginTop: 4, fontSize: 13 },
+  bannedText:       { color: '#ef4444', fontWeight: '700', marginTop: 6, fontSize: 12 },
+
+  // Lists
+  listItem:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#111120' },
+  adminRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#111120' },
   adminActions:     { flexDirection: 'column', gap: 4 },
   inlineRow:        { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  badgeChip:        { backgroundColor: '#1e1030', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#5b21b6' },
-  badgeChipText:    { color: '#a78bfa', fontWeight: '700', fontSize: 11 },
-  verifiedBadge:    { width: 18, height: 18, borderRadius: 9, backgroundColor: '#1d4ed8', justifyContent: 'center', alignItems: 'center' },
-  verifiedBadgeText:{ color: '#fff', fontWeight: '900', fontSize: 11, lineHeight: 13 },
-  goldBadge:        { width: 18, height: 18, borderRadius: 9, backgroundColor: '#b45309', justifyContent: 'center', alignItems: 'center' },
-  goldBadgeText:    { color: '#fef3c7', fontWeight: '900', fontSize: 10, lineHeight: 13 },
-  premiumHeader:    { alignItems: 'center', marginBottom: 20, paddingVertical: 24, borderRadius: 20, backgroundColor: '#1a0f00', borderWidth: 1, borderColor: '#92400e' },
-  premiumActiveHeader: { alignItems: 'center', marginBottom: 20, paddingVertical: 24, borderRadius: 20, backgroundColor: '#1a1200', borderWidth: 1, borderColor: '#d97706' },
-  premiumIcon:      { fontSize: 40, marginBottom: 8, color: '#f59e0b' },
-  premiumActiveIcon:{ fontSize: 40, marginBottom: 8, color: '#fbbf24' },
-  premiumTitle:     { fontSize: 26, fontWeight: '900', color: '#fef3c7', letterSpacing: -0.5 },
-  premiumActiveTitle:{ fontSize: 26, fontWeight: '900', color: '#fcd34d', letterSpacing: -0.5 },
-  premiumPrice:     { fontSize: 18, fontWeight: '700', color: '#f59e0b', marginTop: 6 },
-  premiumDesc:      { color: '#9ca3af', fontSize: 13, lineHeight: 20, marginBottom: 16 },
-  premiumPerk:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#1f1f00' },
-  premiumPerkText:  { color: '#fcd34d', fontWeight: '600', fontSize: 14 },
-  premiumButton:    { backgroundColor: '#d97706', borderRadius: 999, paddingVertical: 15, alignItems: 'center', marginTop: 20, shadowColor: '#f59e0b', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } },
-  premiumButtonText:{ color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 0.3 },
-  commentBox:       { backgroundColor: '#0f0f1a', borderRadius: 12, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#1e1e30' },
-  messageLayout:    { flexDirection: 'row', gap: 12 },
-  messageList:      { width: 148, gap: 6 },
-  messageRow:       { padding: 10, borderRadius: 12, backgroundColor: '#0f0f1a', borderWidth: 1, borderColor: '#1e1e30' },
-  sentBubble:       { alignSelf: 'flex-end', backgroundColor: '#7c3aed', padding: 10, borderRadius: 16, borderBottomRightRadius: 4, marginTop: 8, maxWidth: '75%', shadowColor: '#7c3aed', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  badgeChip:        { backgroundColor: '#13132a', borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: '#202040' },
+  badgeChipText:    { color: '#8080c0', fontWeight: '700', fontSize: 10 },
+
+  // Badges
+  verifiedBadge:    { width: 16, height: 16, borderRadius: 8, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center' },
+  verifiedBadgeText:{ color: '#fff', fontWeight: '900', fontSize: 10, lineHeight: 12 },
+  goldBadge:        { width: 16, height: 16, borderRadius: 8, backgroundColor: '#d97706', justifyContent: 'center', alignItems: 'center' },
+  goldBadgeText:    { color: '#fff', fontWeight: '900', fontSize: 9, lineHeight: 12 },
+
+  // Premium
+  premiumHeader:    { alignItems: 'center', marginBottom: 20, paddingVertical: 28, borderRadius: 14, backgroundColor: '#100d00', borderWidth: 1, borderColor: '#2a1f00' },
+  premiumActiveHeader: { alignItems: 'center', marginBottom: 20, paddingVertical: 28, borderRadius: 14, backgroundColor: '#0f0d00', borderWidth: 1, borderColor: '#a16207' },
+  premiumIcon:      { fontSize: 36, marginBottom: 8, color: '#eab308' },
+  premiumActiveIcon:{ fontSize: 36, marginBottom: 8, color: '#facc15' },
+  premiumTitle:     { fontSize: 24, fontWeight: '900', color: '#fef9c3', letterSpacing: -0.5 },
+  premiumActiveTitle:{ fontSize: 24, fontWeight: '900', color: '#fde047', letterSpacing: -0.5 },
+  premiumPrice:     { fontSize: 16, fontWeight: '700', color: '#eab308', marginTop: 6 },
+  premiumDesc:      { color: '#6b7280', fontSize: 13, lineHeight: 20, marginBottom: 16 },
+  premiumPerk:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderTopWidth: 1, borderTopColor: '#1a1800' },
+  premiumPerkText:  { color: '#fde047', fontWeight: '600', fontSize: 14 },
+  premiumButton:    { backgroundColor: '#ca8a04', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+  premiumButtonText:{ color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
+
+  // Comments / DMs
+  commentBox:       { backgroundColor: '#0b0b16', borderRadius: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#111120' },
+  messageLayout:    { flexDirection: 'row', gap: 10 },
+  messageList:      { width: 144, gap: 4 },
+  messageRow:       { padding: 10, borderRadius: 10, backgroundColor: '#0b0b16', borderWidth: 1, borderColor: '#111120' },
+  sentBubble:       { alignSelf: 'flex-end', backgroundColor: '#5b4fff', padding: 10, borderRadius: 14, borderBottomRightRadius: 3, marginTop: 6, maxWidth: '75%' },
   sentBubbleText:   { color: '#fff', fontSize: 14 },
-  receivedBubble:   { alignSelf: 'flex-start', backgroundColor: '#1a1a2e', padding: 10, borderRadius: 16, borderBottomLeftRadius: 4, marginTop: 8, maxWidth: '75%', borderWidth: 1, borderColor: '#2a2a40' },
-  receivedBubbleText: { color: '#c4b5fd', fontSize: 14 },
+  receivedBubble:   { alignSelf: 'flex-start', backgroundColor: '#111120', padding: 10, borderRadius: 14, borderBottomLeftRadius: 3, marginTop: 6, maxWidth: '75%', borderWidth: 1, borderColor: '#1c1c30' },
+  receivedBubbleText: { color: '#a0a0c0', fontSize: 14 },
 
-  // --- Profile banner ---
-  profileBanner:           { height: 140, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1a1030', marginBottom: 0, position: 'relative' },
+  // Profile banner
+  profileBanner:           { height: 130, borderRadius: 14, overflow: 'hidden', backgroundColor: '#13132a', marginBottom: 0, position: 'relative' },
   profileBannerImage:      { width: '100%', height: '100%' },
-  profileBannerPlaceholder:{ flex: 1, backgroundColor: '#1e1030' },
-  profileAvatarOverlay:    { position: 'absolute', bottom: -32, left: 16 },
+  profileBannerPlaceholder:{ flex: 1, backgroundColor: '#0f0f20' },
+  profileAvatarOverlay:    { position: 'absolute', bottom: -34, left: 14 },
 
-  // --- Settings image pickers ---
+  // Settings image pickers
   imagePickerRow:          { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 6 },
-  settingsAvatarPreview:   { width: 64, height: 64, borderRadius: 32, backgroundColor: '#1e1030', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#7c3aed' },
+  settingsAvatarPreview:   { width: 64, height: 64, borderRadius: 32, backgroundColor: '#13132a', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#5b4fff' },
   bannerPickerWrap:        { marginBottom: 6 },
-  settingsBannerPreview:   { width: '100%', height: 90, borderRadius: 12, backgroundColor: '#1e1030', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#2a2a40' },
-  uploadButton:            { backgroundColor: '#1a1030', borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: '#5b21b6' },
-  uploadButtonText:        { color: '#a78bfa', fontWeight: '700', fontSize: 13 },
+  settingsBannerPreview:   { width: '100%', height: 88, borderRadius: 10, backgroundColor: '#13132a', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#1c1c30' },
+  uploadButton:            { backgroundColor: '#13132a', borderRadius: 8, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: '#202040' },
+  uploadButtonText:        { color: '#8080c0', fontWeight: '600', fontSize: 13 },
 
-  // --- Castyr feed banner ---
-  castyrBanner:            { borderRadius: 20, overflow: 'hidden', backgroundColor: '#0e0a1f', borderWidth: 1, borderColor: '#4f36a0', padding: 18 },
+  // Castyr feed banner
+  castyrBanner:            { borderRadius: 14, backgroundColor: '#090914', borderWidth: 1, borderColor: '#1e1e38', padding: 16 },
   castyrBannerInner:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  castyrBannerLabel:       { color: '#7c5cbf', fontWeight: '700', fontSize: 11, marginBottom: 4 },
-  castyrBannerTitle:       { color: '#e8e0ff', fontWeight: '900', fontSize: 20, letterSpacing: -0.5, marginBottom: 4 },
-  castyrBannerDesc:        { color: '#9b8ec4', fontSize: 13, lineHeight: 18, maxWidth: 260 },
-  castyrBannerButton:      { backgroundColor: '#7c3aed', borderRadius: 999, paddingVertical: 10, paddingHorizontal: 18, shadowColor: '#7c3aed', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
-  castyrBannerButtonText:  { color: '#fff', fontWeight: '800', fontSize: 14 },
+  castyrBannerLabel:       { color: '#5b4fff', fontWeight: '800', fontSize: 10, letterSpacing: 1.5, marginBottom: 5 },
+  castyrBannerTitle:       { color: '#fff', fontWeight: '900', fontSize: 18, letterSpacing: -0.5, marginBottom: 4 },
+  castyrBannerDesc:        { color: '#4b4b6b', fontSize: 12, lineHeight: 17, maxWidth: 240 },
+  castyrBannerButton:      { backgroundColor: '#5b4fff', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16 },
+  castyrBannerButtonText:  { color: '#fff', fontWeight: '700', fontSize: 13 },
 
-  // --- Castyr sidebar card ---
-  castyrSideCard:          { backgroundColor: '#0e0a1f', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#4f36a0' },
-  castyrSideLabel:         { color: '#7c5cbf', fontWeight: '700', fontSize: 11, marginBottom: 4 },
-  castyrSideTitle:         { color: '#e8e0ff', fontWeight: '900', fontSize: 17, marginBottom: 6 },
-  castyrSideDesc:          { color: '#9b8ec4', fontSize: 12, lineHeight: 17, marginBottom: 12 },
-  castyrSideButton:        { backgroundColor: '#7c3aed', borderRadius: 999, paddingVertical: 9, alignItems: 'center', shadowColor: '#7c3aed', shadowOpacity: 0.45, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
-  castyrSideButtonText:    { color: '#fff', fontWeight: '800', fontSize: 13 },
+  // Castyr sidebar card
+  castyrSideCard:          { backgroundColor: '#090914', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#1e1e38' },
+  castyrSideLabel:         { color: '#5b4fff', fontWeight: '800', fontSize: 10, letterSpacing: 1.5, marginBottom: 5 },
+  castyrSideTitle:         { color: '#fff', fontWeight: '900', fontSize: 15, marginBottom: 5 },
+  castyrSideDesc:          { color: '#4b4b6b', fontSize: 12, lineHeight: 16, marginBottom: 12 },
+  castyrSideButton:        { backgroundColor: '#5b4fff', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  castyrSideButtonText:    { color: '#fff', fontWeight: '700', fontSize: 12 },
 });
