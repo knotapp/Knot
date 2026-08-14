@@ -21,6 +21,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Knot needs access to your photos so you can set a profile picture and banner."
+        }
+      ]
+    ]
   }
 }

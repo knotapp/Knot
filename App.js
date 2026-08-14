@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +10,7 @@ import {
   TouchableOpacity as RNTouchableOpacity,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './supabase';
 
 const TouchableOpacity = (props) => (
@@ -162,7 +164,7 @@ export default function App() {
   const [searchQuery, setSearchQuery]   = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [viewMode, setViewMode]         = useState('feed');
-  const [settingsForm, setSettingsForm] = useState({ displayName: '', username: '', password: '', profileImage: '' });
+  const [settingsForm, setSettingsForm] = useState({ displayName: '', username: '', password: '', profileImage: '', bannerImage: '' });
   const [selectedChatUserId, setSelectedChatUserId] = useState(null);
   const [dmSearch, setDmSearch]         = useState('');
 
@@ -271,7 +273,7 @@ export default function App() {
       if (data.banned) { setFeedback('This account is banned.'); return; }
       setAuthUser(data);
       setSelectedProfileId(data.id);
-      setSettingsForm({ displayName: data.display_name, username: data.username, password: data.password, profileImage: data.profile_image || '' });
+      setSettingsForm({ displayName: data.display_name, username: data.username, password: data.password, profileImage: data.profile_image || '', bannerImage: data.banner_image || '' });
       setFeedback(`Welcome back, ${data.display_name}!`);
       // Load all app data now in background
       loadAllData().then(() => {
@@ -297,7 +299,7 @@ export default function App() {
       setUsers((prev) => [newUser, ...prev]);
       setAuthUser(newUser);
       setSelectedProfileId(newUser.id);
-      setSettingsForm({ displayName, username, password, profileImage: '' });
+      setSettingsForm({ displayName, username, password, profileImage: '', bannerImage: '' });
       setFeedback(`Account created for @${username}.`);
     } catch (e) {
       setFeedback('Sign up failed. Please try again.');
@@ -318,12 +320,46 @@ export default function App() {
     if (!username || !password || !displayName) { setFeedback('Fill out all fields.'); return; }
     const dup = users.find((u) => u.id !== authUser.id && u.username.toLowerCase() === username);
     if (dup) { setFeedback('Username already in use.'); return; }
-    const updates = { username, password, display_name: displayName, profile_image: settingsForm.profileImage.trim() };
+    const updates = { username, password, display_name: displayName, profile_image: settingsForm.profileImage.trim(), banner_image: settingsForm.bannerImage.trim() };
     await supabase.from('users').update(updates).eq('id', authUser.id);
     const updated = { ...authUser, ...updates };
     setUsers((prev) => prev.map((u) => u.id === authUser.id ? updated : u));
     setAuthUser(updated);
     setFeedback('Profile updated.');
+  };
+
+  const handlePickProfileImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { setFeedback('Camera roll permission is required.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    const base64Uri = `data:image/jpeg;base64,${asset.base64}`;
+    setSettingsForm((p) => ({ ...p, profileImage: base64Uri }));
+    setFeedback('Image selected — tap Save settings to apply.');
+  };
+
+  const handlePickBannerImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { setFeedback('Camera roll permission is required.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [3, 1],
+      quality: 0.7,
+      base64: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    const base64Uri = `data:image/jpeg;base64,${asset.base64}`;
+    setSettingsForm((p) => ({ ...p, bannerImage: base64Uri }));
+    setFeedback('Banner selected — tap Save settings to apply.');
   };
 
   // --- Posts ---------------------------------------------------------------
@@ -550,8 +586,38 @@ export default function App() {
                 <TextInput style={styles.input} placeholder="Display name" placeholderTextColor="#6b7280" value={settingsForm.displayName} onChangeText={(v) => setSettingsForm((p) => ({ ...p, displayName: v }))} />
                 <TextInput style={styles.input} placeholder="Username" placeholderTextColor="#6b7280" value={settingsForm.username} onChangeText={(v) => setSettingsForm((p) => ({ ...p, username: v }))} />
                 <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#6b7280" secureTextEntry value={settingsForm.password} onChangeText={(v) => setSettingsForm((p) => ({ ...p, password: v }))} />
-                <TextInput style={styles.input} placeholder="Profile image URL" placeholderTextColor="#6b7280" value={settingsForm.profileImage} onChangeText={(v) => setSettingsForm((p) => ({ ...p, profileImage: v }))} />
-                <TouchableOpacity style={styles.primaryButton} onPress={handleUpdateSettings}>
+
+                {/* Profile image picker */}
+                <Text style={[styles.helperText, { marginBottom: 6, marginTop: 4 }]}>Profile image</Text>
+                <View style={styles.imagePickerRow}>
+                  {settingsForm.profileImage ? (
+                    <Image source={{ uri: settingsForm.profileImage }} style={styles.settingsAvatarPreview} />
+                  ) : (
+                    <View style={styles.settingsAvatarPreview}>
+                      <Text style={styles.avatarText}>{getAvatarLabel(authUser)}</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity style={styles.uploadButton} onPress={handlePickProfileImage}>
+                    <Text style={styles.uploadButtonText}>⬆ Update image</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Banner image picker */}
+                <Text style={[styles.helperText, { marginBottom: 6, marginTop: 12 }]}>Profile banner</Text>
+                <View style={styles.bannerPickerWrap}>
+                  {settingsForm.bannerImage ? (
+                    <Image source={{ uri: settingsForm.bannerImage }} style={styles.settingsBannerPreview} />
+                  ) : (
+                    <View style={styles.settingsBannerPreview}>
+                      <Text style={styles.helperText}>No banner set</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity style={[styles.uploadButton, { marginTop: 8 }]} onPress={handlePickBannerImage}>
+                    <Text style={styles.uploadButtonText}>⬆ Update banner</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={[styles.primaryButton, { marginTop: 14 }]} onPress={handleUpdateSettings}>
                   <Text style={styles.primaryButtonText}>Save settings</Text>
                 </TouchableOpacity>
                 {feedback ? <View style={[styles.notice, { marginTop: 10 }]}><Text style={styles.noticeText}>{feedback}</Text></View> : null}
@@ -561,24 +627,35 @@ export default function App() {
             {/* Profile */}
             {viewMode === 'profile' && selectedProfile && (
               <View style={styles.card}>
-                <View style={styles.profileHeader}>
-                  <View style={styles.avatarLarge}>
-                    {selectedProfile.profile_image ? (
-                      <Image source={{ uri: selectedProfile.profile_image }} style={styles.avatarImage} />
-                    ) : (
-                      <Text style={styles.avatarText}>{getAvatarLabel(selectedProfile)}</Text>
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.inlineRow}>
-                      <Text style={styles.profileName}>{selectedProfile.display_name}</Text>
-                      <UserBadges user={selectedProfile} />
+                {/* Banner */}
+                <View style={styles.profileBanner}>
+                  {selectedProfile.banner_image ? (
+                    <Image source={{ uri: selectedProfile.banner_image }} style={styles.profileBannerImage} />
+                  ) : (
+                    <View style={styles.profileBannerPlaceholder} />
+                  )}
+                  {/* Avatar overlaid on banner */}
+                  <View style={styles.profileAvatarOverlay}>
+                    <View style={styles.avatarLarge}>
+                      {selectedProfile.profile_image ? (
+                        <Image source={{ uri: selectedProfile.profile_image }} style={styles.avatarImage} />
+                      ) : (
+                        <Text style={styles.avatarText}>{getAvatarLabel(selectedProfile)}</Text>
+                      )}
                     </View>
-                    <Text style={styles.userMetaText}>@{selectedProfile.username}</Text>
-                    <Text style={styles.profileBio}>{selectedProfile.bio}</Text>
                   </View>
                 </View>
-                <View style={styles.inlineRow}>
+
+                <View style={{ marginTop: 44, paddingHorizontal: 4 }}>
+                  <View style={styles.inlineRow}>
+                    <Text style={styles.profileName}>{selectedProfile.display_name}</Text>
+                    <UserBadges user={selectedProfile} />
+                  </View>
+                  <Text style={styles.userMetaText}>@{selectedProfile.username}</Text>
+                  <Text style={styles.profileBio}>{selectedProfile.bio}</Text>
+                </View>
+
+                <View style={[styles.inlineRow, { marginTop: 10 }]}>
                   <Text style={styles.helperText}>
                     {followerCount(selectedProfile.id)} followers · {followingCount(selectedProfile.id)} following · Role: {selectedProfile.role}
                   </Text>
@@ -846,8 +923,26 @@ export default function App() {
               <>
                 <View style={styles.feedHeader}>
                   <Text style={styles.feedTitle}>Home</Text>
-                  <Text style={styles.feedSubtitle}>Your live social feed — what's happening right now.</Text>
+                  <Text style={styles.feedSubtitle}>Your live social hub — what's happening right now.</Text>
                 </View>
+
+                {/* Castyr promo banner */}
+                <TouchableOpacity
+                  style={styles.castyrBanner}
+                  onPress={() => Linking.openURL('https://castyr.live')}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.castyrBannerInner}>
+                    <View>
+                      <Text style={styles.castyrBannerLabel}>✦ Sponsored</Text>
+                      <Text style={styles.castyrBannerTitle}>🎙 Castyr.live</Text>
+                      <Text style={styles.castyrBannerDesc}>Record, host, and share your podcast in minutes. Try Castyr free.</Text>
+                    </View>
+                    <View style={styles.castyrBannerButton}>
+                      <Text style={styles.castyrBannerButtonText}>Visit →</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
 
                 {feedback ? <View style={styles.notice}><Text style={styles.noticeText}>{feedback}</Text></View> : null}
 
@@ -907,6 +1002,20 @@ export default function App() {
               <Text style={styles.helperText}>Bookmarks: {bookmarkedPosts.length}</Text>
               <Text style={styles.helperText}>DMs: {directMessages.filter((m) => m.sender_id === authUser.id || m.recipient_id === authUser.id).length}</Text>
             </View>
+
+            {/* Castyr sidebar promo */}
+            <TouchableOpacity
+              style={styles.castyrSideCard}
+              onPress={() => Linking.openURL('https://castyr.live')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.castyrSideLabel}>✦ Sponsored</Text>
+              <Text style={styles.castyrSideTitle}>🎙 Castyr.live</Text>
+              <Text style={styles.castyrSideDesc}>Your podcast, live in minutes. Record, host & share for free.</Text>
+              <View style={styles.castyrSideButton}>
+                <Text style={styles.castyrSideButtonText}>Try Castyr free →</Text>
+              </View>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.secondaryButton} onPress={() => setViewMode('settings')}>
               <Text style={styles.secondaryButtonText}>⚙ Settings</Text>
@@ -1064,4 +1173,35 @@ const styles = StyleSheet.create({
   sentBubbleText:   { color: '#fff', fontSize: 14 },
   receivedBubble:   { alignSelf: 'flex-start', backgroundColor: '#1a1a2e', padding: 10, borderRadius: 16, borderBottomLeftRadius: 4, marginTop: 8, maxWidth: '75%', borderWidth: 1, borderColor: '#2a2a40' },
   receivedBubbleText: { color: '#c4b5fd', fontSize: 14 },
+
+  // --- Profile banner ---
+  profileBanner:           { height: 140, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1a1030', marginBottom: 0, position: 'relative' },
+  profileBannerImage:      { width: '100%', height: '100%' },
+  profileBannerPlaceholder:{ flex: 1, backgroundColor: '#1e1030' },
+  profileAvatarOverlay:    { position: 'absolute', bottom: -32, left: 16 },
+
+  // --- Settings image pickers ---
+  imagePickerRow:          { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 6 },
+  settingsAvatarPreview:   { width: 64, height: 64, borderRadius: 32, backgroundColor: '#1e1030', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#7c3aed' },
+  bannerPickerWrap:        { marginBottom: 6 },
+  settingsBannerPreview:   { width: '100%', height: 90, borderRadius: 12, backgroundColor: '#1e1030', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#2a2a40' },
+  uploadButton:            { backgroundColor: '#1a1030', borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: '#5b21b6' },
+  uploadButtonText:        { color: '#a78bfa', fontWeight: '700', fontSize: 13 },
+
+  // --- Castyr feed banner ---
+  castyrBanner:            { borderRadius: 20, overflow: 'hidden', backgroundColor: '#0e0a1f', borderWidth: 1, borderColor: '#4f36a0', padding: 18 },
+  castyrBannerInner:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  castyrBannerLabel:       { color: '#7c5cbf', fontWeight: '700', fontSize: 11, marginBottom: 4 },
+  castyrBannerTitle:       { color: '#e8e0ff', fontWeight: '900', fontSize: 20, letterSpacing: -0.5, marginBottom: 4 },
+  castyrBannerDesc:        { color: '#9b8ec4', fontSize: 13, lineHeight: 18, maxWidth: 260 },
+  castyrBannerButton:      { backgroundColor: '#7c3aed', borderRadius: 999, paddingVertical: 10, paddingHorizontal: 18, shadowColor: '#7c3aed', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+  castyrBannerButtonText:  { color: '#fff', fontWeight: '800', fontSize: 14 },
+
+  // --- Castyr sidebar card ---
+  castyrSideCard:          { backgroundColor: '#0e0a1f', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#4f36a0' },
+  castyrSideLabel:         { color: '#7c5cbf', fontWeight: '700', fontSize: 11, marginBottom: 4 },
+  castyrSideTitle:         { color: '#e8e0ff', fontWeight: '900', fontSize: 17, marginBottom: 6 },
+  castyrSideDesc:          { color: '#9b8ec4', fontSize: 12, lineHeight: 17, marginBottom: 12 },
+  castyrSideButton:        { backgroundColor: '#7c3aed', borderRadius: 999, paddingVertical: 9, alignItems: 'center', shadowColor: '#7c3aed', shadowOpacity: 0.45, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+  castyrSideButtonText:    { color: '#fff', fontWeight: '800', fontSize: 13 },
 });
